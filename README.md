@@ -6,7 +6,7 @@ Repositori ini berfokus pada **riset dan eksperimen fine-tuning LLM** menggunaka
 
 * Menyediakan kerangka eksperimen untuk fine-tuning LLM.
 * Mendukung reproducibility dengan konfigurasi terstruktur.
-* Menghubungkan hasil preprocessing dari repo [`llm-data-pipeline`](../llm-data-pipeline).
+* Menghubungkan hasil preprocessing dari repo [`dtp-data-pipeline`](https://github.com/DTP-Fine-Tuning/dtp-data-pipeline).
 
 ##  Struktur Direktori
 
@@ -71,4 +71,4 @@ Setiap anggota tim bisa menjalankan eksperimen dengan konfigurasi masing-masing.
 
 ---
 
- *Repo ini saling melengkapi dengan [`dtp-data-pipeline`](../dtp-data-pipeline) sebagai sumber dataset preprocessing.*
+ *Repo ini saling melengkapi dengan [`dtp-data-pipeline`](https://github.com/DTP-Fine-Tuning/dtp-data-pipeline) sebagai sumber dataset preprocessing.*
