@@ -1,23 +1,19 @@
 # Configs
 
-Berisi file konfigurasi eksperimen dalam format **YAML**. Contoh:
-- `sft_config.yaml` → konfigurasi untuk Supervised Fine-Tuning.
-- `dpo_config.yaml` → konfigurasi untuk Direct Preference Optimization.
-# Training Configurations
+## Training Configurations
 
 This directory contains YAML configuration files for training experiments. Each configuration file defines all hyperparameters, model settings, and training arguments for a specific experiment.
 
-## 📁 Directory Structure
+##  Directory Structure
 
 ```
 configs/
 ├── README.md                      # This file
 ├── sft_llama32_1b.yaml           # Base configuration for Llama 3.2 1B
-├── sft_llama32_1b_fast.yaml      # Fast training (fewer epochs, larger batch)
-└── sft_llama32_1b_high_quality.yaml  # High quality (more epochs, smaller LR)
+├── sft_qwen3_1_7B_improved.yaml  # Base configuration for qwen3 1.7B multi-turn indonesian
 ```
 
-## 🎯 Quick Start
+##  Quick Start
 
 ### Using a Configuration
 
@@ -210,8 +206,8 @@ training:
 
 | Parameter | Impact | Recommendation |
 |-----------|--------|----------------|
-| `max_length` | 🔴 High | Start at 1024, reduce if OOM |
-| `per_device_train_batch_size` | 🔴 High | Keep at 1 for 9GB GPU |
+| `max_length` |  High | Start at 1024, reduce if OOM |
+| `per_device_train_batch_size` |  High | Keep at 1 for 9GB GPU |
 | `gradient_accumulation_steps` | 🟡 Medium | Increase to compensate for small batch |
 | `lora.r` | 🟡 Medium | 8-16 for 1B models, 4-8 for 3B+ |
 
@@ -234,7 +230,7 @@ training:
 | `eval_steps` | How often to evaluate | 100-500 |
 | `save_total_limit` | How many checkpoints to keep | 2-3 |
 
-## 🎨 Configuration Templates
+##  Configuration Templates
 
 ### Template: Fast Prototyping
 
@@ -292,7 +288,7 @@ training:
   gradient_accumulation_steps: 16
 ```
 
-## 🔍 Naming Conventions
+##  Naming Conventions
 
 Follow these conventions when creating new configs:
 
@@ -307,15 +303,15 @@ Examples:
 - sft_llama32_1b_custom_data.yaml  # Custom dataset
 ```
 
-## 📝 Version Control Best Practices
+##  Version Control Best Practices
 
-### Do's ✅
+### Do's 
 - Commit each config file separately
 - Use descriptive commit messages
 - Document major parameter changes
 - Keep a changelog in config comments
 
-### Don'ts ❌
+### Don'ts 
 - Don't commit temporary test configs
 - Don't use generic names like `config.yaml`
 - Don't delete old configs that produced good results
@@ -402,7 +398,7 @@ Effective batch size = `per_device_train_batch_size × gradient_accumulation_ste
 | High Quality | 1 × 16 = **16** |
 | Low Memory | 1 × 32 = **32** |
 
-## 🎯 Decision Tree
+##  Decision Tree
 
 ```
 Start Here
@@ -424,7 +420,7 @@ Do you have <8GB GPU memory?
         └─ Balanced → Use: sft_llama32_1b.yaml (baseline)
 ```
 
-## 📋 Use Case Examples
+##  Use Case Examples
 
 ### Scenario 1: Initial Experiment
 **Goal**: Test if the approach works
@@ -466,7 +462,7 @@ Do you have <8GB GPU memory?
 - Catches major issues
 - Good for CI/CD
 
-## 🔄 Migration Path
+##  Migration Path
 
 ### From Fast → Baseline
 ```yaml
@@ -507,7 +503,7 @@ training:
   gradient_accumulation_steps: 32 → 8
 ```
 
-## 💰 Cost Estimation
+##  Cost Estimation
 
 ### Cloud GPU Costs (Approximate)
 
@@ -529,7 +525,7 @@ training:
 | High Quality | 10-12 hours | $3.50-$4.20 |
 | Low Memory | 6-7 hours | $2.10-$2.45 |
 
-## 📈 Performance Expectations
+##  Performance Expectations
 
 ### Model Quality (Subjective)
 
@@ -609,7 +605,7 @@ cp configs/sft_llama32_1b.yaml configs/sft_llama32_1b_custom.yaml
 # Document what you changed and why
 ```
 
-## 📊 Monitoring During Training
+##  Monitoring During Training
 
 ### What to Watch
 
@@ -642,7 +638,7 @@ cp configs/sft_llama32_1b.yaml configs/sft_llama32_1b_custom.yaml
 - High Quality too slow
 - Want balanced approach
 
-## 📝 Summary
+##  Summary
 
 Choose your config based on:
 1. **Available GPU memory**
@@ -670,7 +666,7 @@ bash scripts/run_sft.sh sft_llama32_1b_high_quality.yaml
 bash scripts/run_sft.sh sft_llama32_1b_low_memory.yaml
 ```
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### Config Not Found
 
@@ -695,7 +691,7 @@ python3 -c "import yaml; yaml.safe_load(open('configs/sft_llama32_1b.yaml'))"
 2. Verify parameter name spelling
 3. Ensure the parameter is loaded in `sft_train.py`
 
-## 📚 Additional Resources
+##  Additional Resources
 
 ### Documentation
 - [Transformers Training Arguments](https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments)
@@ -703,11 +699,11 @@ python3 -c "import yaml; yaml.safe_load(open('configs/sft_llama32_1b.yaml'))"
 - [TRL SFTTrainer](https://huggingface.co/docs/trl/sft_trainer)
 
 ### Related Files
-- `src/training/sft_train.py` - Main training script
-- `scripts/run_sft.sh` - Bash script to run training
+- `src/training/train_script_qwen3_improved.py` - Main training script
+- `scripts/run_training.sh` - Bash script to run training
 - `requirements.txt` - Required packages
 
-## 💡 Tips & Tricks
+##  Tips & Tricks
 
 1. **Start with base config**: Copy `sft_llama32_1b.yaml` as starting point
 2. **Change one thing at a time**: Easier to identify what works
@@ -716,14 +712,14 @@ python3 -c "import yaml; yaml.safe_load(open('configs/sft_llama32_1b.yaml'))"
 5. **Track results**: Use Weights & Biases to compare runs
 6. **Keep successful configs**: Don't delete configs that worked well
 
-## 🎓 Learning Path
+##  Learning Path
 
 1. **Beginner**: Use base config as-is
 2. **Intermediate**: Adjust batch size and learning rate
 3. **Advanced**: Experiment with LoRA rank and architecture
 4. **Expert**: Create custom configs for specific use cases
 
-## 📞 Support
+##  Support
 
 If you need help with configurations:
 1. Check this README
@@ -733,4 +729,4 @@ If you need help with configurations:
 
 ---
 
-**Happy experimenting! 🚀**
+**Happy experimenting!**
