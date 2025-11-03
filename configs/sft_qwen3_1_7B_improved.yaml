@@ -1,0 +1,186 @@
+# Training Configuration for Qwen3-1.7B SFT with Multi-turn Conversations
+# Project: dtp-fine-tuning-research
+
+# Model Configuration
+model:
+  name: "Qwen/Qwen3-1.7B"
+  trust_remote_code: true
+  use_cache: false
+
+# Tokenizer Configuration
+tokenizer:
+  padding_side: "left"  # Qwen3 typically uses left padding for generation
+  trust_remote_code: true
+
+# Quantization Configuration (BitsAndBytes)
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "float16"  # Will be converted to torch.float16
+  bnb_4bit_use_double_quant: true
+
+# LoRA Configuration
+lora:
+  r: 16
+  lora_alpha: 32
+  target_modules:  # Qwen3 specific attention and MLP modules
+    - "q_proj"
+    - "k_proj" 
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+# Dataset Configuration
+dataset:
+  name: "izzulgod/indonesian-conversation"  # Multi-turn conversation dataset
+  split: "train"
+  test_size: 0.02
+  seed: 42
+  text_field: "text"
+  max_length: 2048
+  # Additional dataset settings for multi-turn conversations
+  conversation_field: "conversation"  # Field containing conversation data
+  format_type: "multi_turn"  # single_turn or multi_turn
+
+# Training Arguments
+training:
+  output_dir: "./SFT-Qwen3-1.7B-LoRA-MultiTurn"
+  run_name: "SFT-Qwen3-1.7B-LoRA-MultiTurn-Indonesian"
+  
+  # Batch Configuration
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 8
+  
+  # Memory Optimization
+  gradient_checkpointing: true
+  gradient_checkpointing_kwargs:
+    use_reentrant: false
+  
+  # Training Parameters
+  num_train_epochs: 3
+  learning_rate: 0.0002
+  warmup_ratio: 0.03
+  
+  # Optimizer
+  optim: "paged_adamw_8bit"
+  weight_decay: 0.01
+  
+  # Scheduler
+  lr_scheduler_type: "cosine"
+  
+  # Precision
+  bf16: false
+  fp16: true
+  
+  # Logging & Evaluation
+  logging_steps: 25
+  eval_strategy: "steps"
+  eval_steps: 200
+  save_strategy: "steps"
+  save_steps: 200
+  save_total_limit: 2
+  
+  # Data Configuration
+  packing: false
+  dataset_text_field: "text"
+  dataloader_num_workers: 0
+  remove_unused_columns: true
+  
+  # Model Selection
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  
+  # Misc
+  seed: 42
+  report_to: "wandb"  # Can be "wandb", "tensorboard", "none", or list ["wandb", "tensorboard"]
+
+# Callbacks Configuration
+callbacks:
+  early_stopping:
+    enabled: true
+    patience: 3
+    threshold: 0.0
+  
+  custom_logging:
+    enabled: true
+  
+  memory_monitor:
+    enabled: true
+    log_every_n_steps: 100
+  
+  save_best_model:
+    enabled: true
+
+# Chat Template Configuration for Qwen3
+chat_template:
+  system_message: "Anda adalah asisten AI yang membantu dan informatif. Berikan jawaban yang akurat, relevan, dan mudah dipahami."
+  use_system_message: true
+  use_qwen_format: true
+  # Template for multi-turn conversations
+  conversation_template: |
+    <|im_start|>system
+    {system_message}<|im_end|>
+    {conversation_history}
+    <|im_start|>assistant
+    {response}<|im_end|>
+
+# Weights & Biases Configuration
+wandb:
+  entity: "DTP2"
+  project: "Base Model Experiments"
+  tags:
+    - "qwen3"
+    - "multi-turn"
+    - "indonesian"
+    - "sft"
+  notes: "Fine-tuning Qwen3-1.7B on Indonesian multi-turn conversation dataset"
+
+# Paths (relative to project root)
+paths:
+  final_model_dir: "./SFT-Qwen3-1.7B-LoRA-MultiTurn-final"
+  checkpoints_dir: "./checkpoints"
+  logs_dir: "./logs"
+
+# Model Saving Options
+save_merged_model: false  # Whether to save a merged model (base + LoRA)
+push_to_hub: false  # Whether to push model to HuggingFace Hub
+hub_model_id: ""  # HuggingFace Hub model ID (if pushing)
+
+# Evaluation Configuration (for post-training evaluation)
+evaluation:
+  metrics:
+    - "correctness"
+    - "coherence"
+    - "relevancy"
+    - "context_consistency"
+    - "hallucination"
+  test_samples: 100
+  save_predictions: true
+  output_dir: "./evaluation_results"
+
+# Inference Configuration (for Gradio interface)
+inference:
+  max_new_tokens: 512
+  temperature: 0.7
+  top_p: 0.95
+  top_k: 50
+  repetition_penalty: 1.1
+  stream: true
+
+# Advanced Training Options
+advanced:
+  use_flash_attention: false  # Enable Flash Attention if available
+  use_lora_plus: false  # Use LoRA+ optimization
+  use_neftune: false  # Use NEFTune noise for better generalization
+  neftune_noise_alpha: 5.0  # NEFTune noise parameter
+  max_grad_norm: 1.0  # Gradient clipping
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1e-8
