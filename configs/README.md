@@ -9,8 +9,10 @@ This directory contains YAML configuration files for training experiments. Each 
 ```
 configs/
 ├── README.md                      # This file
-├── sft_llama32_1b.yaml           # Base configuration for Llama 3.2 1B
-├── sft_qwen3_1_7B_improved.yaml  # Base configuration for qwen3 1.7B multi-turn indonesian
+├── README_QWEN2_7B.md            # Detailed guide for Qwen2-7B
+├── sft_qwen2_7B.yaml             # Configuration for Qwen2 7B (RECOMMENDED FOR PRODUCTION)
+├── sft_qwen3_1_7B_improved.yaml  # Configuration for Qwen3 1.7B multi-turn
+├── sft_llama3.2_1B.yaml          # Configuration for Llama 3.2 1B
 ```
 
 ##  Quick Start
@@ -18,8 +20,14 @@ configs/
 ### Using a Configuration
 
 ```bash
-# From project root
-bash scripts/run_sft.sh sft_llama32_1b.yaml
+# Qwen2-7B (recommended for production)
+python src/training/training_script_qwen3_improved.py --config configs/sft_qwen2_7B.yaml
+
+# Qwen3 1.7B (faster, development)
+python src/training/training_script_qwen3_improved.py --config configs/sft_qwen3_1_7B_improved.yaml
+
+# Or use the general training script
+./scripts/run_training.sh
 ```
 
 ### Creating a New Configuration

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ################################################################################
-# Setup Script for Qwen3 Fine-tuning Pipeline
+# Setup Script for Qwen Fine-tuning Pipeline (Qwen2/Qwen3)
 # This script verifies the environment and prepares scripts for execution
 # Must be run from project root: ~/dtp-fine-tuning-research/
 ################################################################################
@@ -87,7 +87,7 @@ verify_project_root() {
 # Main Setup
 ################################################################################
 
-print_header "Qwen3 Fine-tuning Pipeline Setup"
+print_header "Qwen Fine-tuning Pipeline Setup (Qwen2/Qwen3)"
 
 verify_project_root
 
@@ -330,8 +330,8 @@ fi
 print_step "Step 7: Verifying configuration files..."
 
 CONFIG_FILES=(
+    "configs/sft_qwen2_7B.yaml"
     "configs/sft_qwen3_1_7B_improved.yaml"
-    "configs/sft_qwen3_1_7B.yaml"
     "configs/sft_llama3.2_1B.yaml"
 )
 
@@ -425,14 +425,14 @@ if [ -f "$ENV_FILE" ]; then
     print_info "Environment template already exists: $ENV_FILE"
 else
     cat > "$ENV_FILE" << 'EOF'
-# Environment Variables for Qwen3 Fine-tuning Pipeline
+# Environment Variables for Qwen Fine-tuning Pipeline (Qwen2/Qwen3)
 # Copy this to .env and fill in your values
 # The setup.sh script will automatically load this file
 
 # Weights & Biases (Required for tracking)
 WANDB_API_KEY=your-wandb-api-key
 WANDB_ENTITY=your-wandb-entity
-WANDB_PROJECT=qwen3-fine-tuning
+WANDB_PROJECT=qwen-fine-tuning
 
 # OpenAI (Optional - only for DeepEval with OpenAI)
 # OPENAI_API_KEY=your-openai-api-key
@@ -476,7 +476,8 @@ echo "  1. If you haven't already, configure your .env file:"
 echo "     nano .env"
 echo
 echo "  2. Review and modify configuration:"
-echo "     nano configs/sft_qwen3_1_7B_improved.yaml"
+echo "     For Qwen2 7B:    nano configs/sft_qwen2_7B.yaml"
+echo "     For Qwen3 1.7B:  nano configs/sft_qwen3_1_7B_improved.yaml"
 echo
 echo "  3. Start the pipeline:"
 echo "     ./scripts/run_pipeline.sh"
