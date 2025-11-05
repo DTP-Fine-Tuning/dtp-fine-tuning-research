@@ -1,0 +1,44 @@
+{
+  "os": "Linux-6.6.105+-x86_64-with-glibc2.35",
+  "python": "CPython 3.12.12",
+  "startedAt": "2025-11-05T04:44:05.486062Z",
+  "args": [
+    "--config",
+    "configs/sft_qwen2_7B_10k_A100.yaml"
+  ],
+  "program": "/content/dtp-fine-tuning-research/src/training/training_script_qwen3_improved.py",
+  "codePath": "src/training/training_script_qwen3_improved.py",
+  "codePathLocal": "src/training/training_script_qwen3_improved.py",
+  "git": {
+    "remote": "https://github.com/DTP-Fine-Tuning/dtp-fine-tuning-research.git",
+    "commit": "95e5803a48e7bb6d63f089691f7fd398d6d683c0"
+  },
+  "email": "syafiqirzaky@gmail.com",
+  "root": "/content/dtp-fine-tuning-research",
+  "host": "f1bea1331ab7",
+  "executable": "/usr/bin/python3",
+  "cpu_count": 6,
+  "cpu_count_logical": 12,
+  "gpu": "NVIDIA A100-SXM4-80GB",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "253055008768",
+      "used": "58465800192"
+    }
+  },
+  "memory": {
+    "total": "179370496000"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA A100-SXM4-80GB",
+      "memoryTotal": "85899345920",
+      "cudaCores": 6912,
+      "architecture": "Ampere",
+      "uuid": "GPU-527f2895-7076-ae0c-1c1d-f6d6536b1c2e"
+    }
+  ],
+  "cudaVersion": "12.4",
+  "writerId": "1w6b1j64hwdy145q6jiu2fial1jet0nh"
+}

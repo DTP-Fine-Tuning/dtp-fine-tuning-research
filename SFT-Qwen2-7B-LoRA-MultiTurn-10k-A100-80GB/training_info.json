@@ -1,0 +1,34 @@
+{
+  "model_name": "Qwen/Qwen2-7B",
+  "lora_config": {
+    "r": 16,
+    "lora_alpha": 32,
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
+    "lora_dropout": 0.05,
+    "bias": "none",
+    "task_type": "CAUSAL_LM"
+  },
+  "tokenizer_config": {
+    "padding_side": "left",
+    "trust_remote_code": true
+  },
+  "chat_template": {
+    "system_message": "Anda adalah asisten AI yang membantu dan informatif. Berikan jawaban yang akurat, relevan, dan mudah dipahami.",
+    "use_system_message": true,
+    "use_qwen_format": true,
+    "conversation_template": "<|im_start|>system\n{system_message}<|im_end|>\n{conversation_history}\n<|im_start|>assistant\n{response}<|im_end|>\n"
+  },
+  "training_completed": "2025-11-05T10:53:35.925110",
+  "dataset_info": {
+    "name": "dtp-fine-tuning/dtp-multiturn-complaint-agq-10k",
+    "max_length": 2048
+  }
+}
