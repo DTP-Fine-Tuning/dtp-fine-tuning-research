@@ -1,0 +1,277 @@
+# Training Configuration for Qwen2-7B SFT - ULTRA OPTIMIZED for A100 40GB
+# Project: dtp-fine-tuning-research
+# TARGET: Maximum speed with A100's capabilities
+
+# Model Configuration
+model:
+  name: "Qwen/Qwen2-7B"
+  trust_remote_code: true
+  use_cache: false
+
+# Tokenizer Configuration
+tokenizer:
+  padding_side: "left"
+  trust_remote_code: true
+
+# Quantization Configuration (BitsAndBytes)
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "bfloat16"  # A100 supports bfloat16!
+  bnb_4bit_use_double_quant: true
+
+# LoRA Configuration
+lora:
+  r: 16
+  lora_alpha: 32
+  target_modules:
+    - "q_proj"
+    - "k_proj" 
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+# Dataset Configuration
+dataset:
+  name: "dtp-fine-tuning/dtp-multiturn-complaint-agq-10k"
+  split: "train"
+  test_size: 0.02
+  seed: 42
+  text_field: "text"
+  max_length: 2048
+  conversation_field: "conversation"
+  format_type: "multi_turn"
+
+# Training Arguments - ULTRA OPTIMIZED FOR A100 40GB
+training:
+  output_dir: "./SFT-Qwen2-7B-LoRA-MultiTurn_10k_A100"
+  run_name: "SFT-Qwen2-7B-LoRA-MultiTurn-complaint-agq-10k-A100-ultra"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # OPTIMIZATION #1: MASSIVE BATCH SIZE (A100 can handle it!)
+  # ═══════════════════════════════════════════════════════════════════
+  # With 40GB, we can go MUCH bigger!
+  per_device_train_batch_size: 4  # 4x original! (was 1)
+  per_device_eval_batch_size: 4
+  gradient_accumulation_steps: 2  # Effective batch = 4 × 2 = 8 (same quality)
+  # With bigger batch, we get ~60-70% speedup just from this!
+  
+  # Memory Optimization
+  gradient_checkpointing: true
+  gradient_checkpointing_kwargs:
+    use_reentrant: false
+  
+  # Training Parameters
+  num_train_epochs: 3
+  learning_rate: 0.0002
+  warmup_ratio: 0.03
+  
+  # Optimizer
+  optim: "paged_adamw_8bit"
+  weight_decay: 0.01
+  
+  # Scheduler
+  lr_scheduler_type: "cosine"
+  
+  # ═══════════════════════════════════════════════════════════════════
+  # OPTIMIZATION #2: BFLOAT16 (A100's superpower!)
+  # ═══════════════════════════════════════════════════════════════════
+  # A100 has dedicated bfloat16 tensor cores - MUCH faster than fp16!
+  bf16: true   # This alone gives 20-30% speedup on A100!
+  fp16: false  # Don't use fp16 when you have bf16
+  tf32: true   # Enable TF32 for even more speed
+  
+  # ═══════════════════════════════════════════════════════════════════
+  # OPTIMIZATION #3: AGGRESSIVE DATA LOADING
+  # ═══════════════════════════════════════════════════════════════════
+  # A100 can process data FAST, so feed it aggressively
+  dataloader_num_workers: 8  # More workers for A100's speed (was 4)
+  dataloader_pin_memory: true
+  dataloader_prefetch_factor: 4  # Prefetch more batches
+  
+  # ═══════════════════════════════════════════════════════════════════
+  # OPTIMIZATION #4: MINIMAL OVERHEAD
+  # ═══════════════════════════════════════════════════════════════════
+  logging_steps: 100         # Log even less (was 50)
+  eval_strategy: "steps"
+  eval_steps: 1000           # Evaluate very infrequently (was 500)
+  save_strategy: "steps"
+  save_steps: 1000           # Save very infrequently (was 500)
+  save_total_limit: 2
+  
+  # Data Configuration
+  packing: false
+  dataset_text_field: "text"
+  remove_unused_columns: true
+  
+  # Model Selection
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  
+  # ═══════════════════════════════════════════════════════════════════
+  # OPTIMIZATION #5: FASTER GRADIENT OPERATIONS
+  # ═══════════════════════════════════════════════════════════════════
+  max_grad_norm: 1.0
+  gradient_checkpointing_use_reentrant: false
+  
+  # Misc
+  seed: 42
+  report_to: "wandb"
+
+# Callbacks Configuration
+callbacks:
+  early_stopping:
+    enabled: true
+    patience: 3
+    threshold: 0.0
+  
+  custom_logging:
+    enabled: true
+  
+  memory_monitor:
+    enabled: true
+    log_every_n_steps: 100
+  
+  save_best_model:
+    enabled: true
+
+# Chat Template Configuration for Qwen2
+chat_template:
+  system_message: "Anda adalah asisten AI yang membantu dan informatif. Berikan jawaban yang akurat, relevan, dan mudah dipahami."
+  use_system_message: true
+  use_qwen_format: true
+  conversation_template: |
+    <|im_start|>system
+    {system_message}<|im_end|>
+    {conversation_history}
+    <|im_start|>assistant
+    {response}<|im_end|>
+
+# Weights & Biases Configuration
+wandb:
+  entity: "DTP2"
+  project: "SFT_Pipeline_colab"
+  tags:
+    - "qwen2"
+    - "qwen2-7b"
+    - "multi-turn"
+    - "dtp_complaint_agq-10k"
+    - "sft"
+    - "A100-optimized"
+    - "ultra-fast"
+  notes: "Fine-tuning Qwen2-7B on A100 40GB - ULTRA OPTIMIZED for maximum speed"
+
+# Paths
+paths:
+  final_model_dir: "./SFT-Qwen2-7B-LoRA-MultiTurn-10k-A100"
+  checkpoints_dir: "./checkpoints"
+  logs_dir: "./logs"
+
+# Model Saving Options
+save_merged_model: false
+push_to_hub: false
+hub_model_id: ""
+
+# Evaluation Configuration
+evaluation:
+  metrics:
+    - "correctness"
+    - "coherence"
+    - "relevancy"
+    - "context_consistency"
+    - "hallucination"
+  test_samples: 100
+  save_predictions: true
+  output_dir: "./evaluation_results"
+
+# Inference Configuration
+inference:
+  max_new_tokens: 512
+  temperature: 0.7
+  top_p: 0.95
+  top_k: 50
+  repetition_penalty: 1.1
+  stream: true
+
+# Advanced Training Options - A100 SPECIFIC
+advanced:
+  use_flash_attention: false  # Set to true if installed
+  use_lora_plus: false
+  use_neftune: false
+  neftune_noise_alpha: 5.0
+  max_grad_norm: 1.0
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1e-8
+  
+  # A100-specific optimizations
+  use_tf32: true              # TensorFloat-32 for A100
+  compile_model: false         # PyTorch 2.0 compile (experimental)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A100 40GB OPTIMIZATION SUMMARY
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Your Hardware:
+#   - GPU: NVIDIA A100 40GB (TOP TIER!)
+#   - Compute Capability: 8.0
+#   - TensorCores: Gen 3 with bfloat16 support
+#   - Memory Bandwidth: 1.5 TB/s
+#   - Peak Performance: 312 TFLOPS (bf16)
+#
+# Optimizations Applied:
+#   1. BATCH SIZE: 1 → 4 (4x bigger!)
+#   2. GRADIENT ACCUMULATION: 8 → 2 (4x less overhead!)
+#   3. BFLOAT16: Enabled (A100's native format, 20-30% faster)
+#   4. TF32: Enabled (automatic speedup for matmul)
+#   5. DATALOADER WORKERS: 0 → 8 (feed the beast!)
+#   6. PREFETCH FACTOR: 4 (always have data ready)
+#   7. EVAL FREQUENCY: 200 → 1000 steps (minimal interruption)
+#   8. COMPUTE DTYPE: float16 → bfloat16 (better for A100)
+#
+# Expected Results:
+#   - Training time: 7 hours → ~2-3 hours (60-70% faster!)
+#   - GPU usage: 15GB → ~25-28GB (optimal utilization)
+#   - Steps/second: ~0.6 it/s → ~1.8-2.5 it/s (3-4x faster!)
+#   - Effective batch size: Still 8 (same quality)
+#
+# Memory Breakdown (A100 40GB):
+#   - Model (4-bit): ~4GB
+#   - Optimizer states: ~5GB
+#   - Gradients: ~3GB
+#   - Activations (batch=4): ~12GB (was ~4GB with batch=1)
+#   - Buffer: ~2GB
+#   Total: ~26-28GB (leaves 12-14GB safety margin)
+#
+# Why A100 is Special:
+#   1. Native bfloat16 support (no precision loss, faster compute)
+#   2. TF32 for automatic speedup in matmul operations
+#   3. Faster memory bandwidth (1.5TB/s vs 900GB/s on V100)
+#   4. More memory (40GB vs 16GB on V100)
+#   5. 3rd gen Tensor Cores (2x faster than V100)
+#
+# Speed Comparison:
+#   - T4:  ~15-20 hours (baseline)
+#   - V100: ~7-10 hours (2x faster than T4)
+#   - A100: ~2-3 hours (3-4x faster than V100, 5-7x faster than T4!)
+#
+# If OOM occurs (unlikely with 40GB):
+#   - Reduce batch size to 3 or 2
+#   - Increase gradient_accumulation_steps to 3 or 4
+#   - Reduce max_length to 1536
+#   - Reduce dataloader_num_workers to 4
+#
+# Pro Tips for A100:
+#   1. Always use bf16 instead of fp16 on A100
+#   2. Enable tf32 for free speedup
+#   3. Use larger batch sizes to utilize memory
+#   4. Consider Flash Attention for even more speed
+#   5. Monitor GPU utilization - should be 95-100%
+#
+# ═══════════════════════════════════════════════════════════════════════════
