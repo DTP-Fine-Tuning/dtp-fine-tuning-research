@@ -49,9 +49,9 @@ dataset:
 
 # Training Arguments
 training:
-  output_dir: "./SFT-Qwen2-7B-LoRA-MultiTurn"
+  output_dir: "./SFT-Qwen2-7B-LoRA-MultiTurn_10k"
   run_name: "SFT-Qwen2-7B-LoRA-MultiTurn-complaint-agq-10k"
-  
+
   # Batch Configuration (adjusted for 7B model)
   per_device_train_batch_size: 1
   per_device_eval_batch_size: 1
@@ -134,18 +134,18 @@ chat_template:
 # Weights & Biases Configuration
 wandb:
   entity: "DTP2"
-  project: "Base Model Experiments"
+  project: "SFT_Pipeline_colab"
   tags:
     - "qwen2"
     - "qwen2-7b"
     - "multi-turn"
-    - "indonesian"
+    - "dtp_complaint_agq-10k"
     - "sft"
-  notes: "Fine-tuning Qwen2-7B on Indonesian multi-turn conversation dataset"
+  notes: "Fine-tuning Qwen2-7B on dtp_complaint_agq-10k dataset"
 
 # Paths (relative to project root)
 paths:
-  final_model_dir: "./SFT-Qwen2-7B-LoRA-MultiTurn-final"
+  final_model_dir: "./SFT-Qwen2-7B-LoRA-MultiTurn-10k"
   checkpoints_dir: "./checkpoints"
   logs_dir: "./logs"
 
