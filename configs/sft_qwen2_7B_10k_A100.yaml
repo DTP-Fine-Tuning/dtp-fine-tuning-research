@@ -17,7 +17,7 @@ tokenizer:
 quantization:
   load_in_4bit: true
   bnb_4bit_quant_type: "nf4"
-  bnb_4bit_compute_dtype: "float16"  # A100 supports bfloat16!
+  bnb_4bit_compute_dtype: "bfloat16"  # A100 supports bfloat16!
   bnb_4bit_use_double_quant: true
 
 # LoRA Configuration
@@ -56,9 +56,9 @@ training:
   # OPTIMIZATION #1: EXTREME BATCH SIZE (A100 80GB = BEAST MODE!)
   # ═══════════════════════════════════════════════════════════════════
   # With 80GB, we can go MASSIVE!
-  per_device_train_batch_size: 12  # 12x original! (was 1) - EXTREME!
-  per_device_eval_batch_size: 12
-  gradient_accumulation_steps: 1   # NO accumulation needed! (effective batch = 12)
+  per_device_train_batch_size: 16  # 16x original! (was 1) - EXTREME!
+  per_device_eval_batch_size: 16
+  gradient_accumulation_steps: 1   # NO accumulation needed! (effective batch = 16)
   # With this batch size, we get ~80-90% speedup! 🔥🔥🔥
   
   # Memory Optimization
@@ -82,8 +82,8 @@ training:
   # OPTIMIZATION #2: BFLOAT16 (A100's superpower!)
   # ═══════════════════════════════════════════════════════════════════
   # A100 has dedicated bfloat16 tensor cores - MUCH faster than fp16!
-  bf16: false
-  fp16: true
+  bf16: true
+  fp16: false
   
   # ═══════════════════════════════════════════════════════════════════
   # OPTIMIZATION #3: EXTREME DATA LOADING
