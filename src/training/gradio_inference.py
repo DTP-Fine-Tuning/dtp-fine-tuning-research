@@ -163,7 +163,7 @@ class Qwen3ChatInterface:
             # Load LoRA adapter
             self.model = PeftModel.from_pretrained(
                 base_model,
-                self.model_path,
+                str(self.model_path),
                 device_map="auto" if self.device == "cuda" else None,
             )
         
