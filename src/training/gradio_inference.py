@@ -165,7 +165,7 @@ class Qwen3ChatInterface:
                 base_model,
                 str(self.model_path),
                 device_map="auto" if self.device == "cuda" else None,
-                **local_files_only=True**,
+                local_files_only=True,
             )
         
         # Set model to evaluation mode
