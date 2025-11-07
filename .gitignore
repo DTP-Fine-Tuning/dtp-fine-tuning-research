@@ -11,7 +11,6 @@ __pycache__/
 *.ckpt
 *.pt
 *.bin
-*.safetensors
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
