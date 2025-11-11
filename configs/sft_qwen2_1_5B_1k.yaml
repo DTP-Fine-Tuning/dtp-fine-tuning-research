@@ -1,4 +1,4 @@
-# Training Configuration for Qwen2-7B SFT with Multi-turn Conversations
+# Training Configuration for Qwen3-1.7B SFT with Multi-turn Conversations
 # Project: dtp-fine-tuning-research
 
 # Model Configuration
@@ -9,7 +9,7 @@ model:
 
 # Tokenizer Configuration
 tokenizer:
-  padding_side: "left"
+  padding_side: "right"  # Qwen3 typically uses left padding for generation
   trust_remote_code: true
 
 # Quantization Configuration (BitsAndBytes)
@@ -23,7 +23,7 @@ quantization:
 lora:
   r: 16
   lora_alpha: 32
-  target_modules:  # Qwen2 specific attention and MLP modules
+  target_modules:  # Qwen3 specific attention and MLP modules
     - "q_proj"
     - "k_proj" 
     - "v_proj"
@@ -37,23 +37,25 @@ lora:
 
 # Dataset Configuration
 dataset:
-  name: "dtp-fine-tuning/dtp-multiturn-complaint-agq-1k"
+  name: "dtp-fine-tuning/dtp-multiturn-complaint-agq-1k"  # Multi-turn conversation dataset
   split: "train"
   test_size: 0.02
   seed: 42
-  max_length: 2048
-  # Dataset uses 'messages' field with array of message objects
-  # Format: [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+  # text_field: "text"
+  max_length: 4096
+  # Additional dataset settings for multi-turn conversations
+  conversation_field: "messages"  # Field containing conversation data
+  format_type: "multi_turn"  # single_turn or multi_turn
 
 # Training Arguments
 training:
-  output_dir: "./SFT-Qwen2-1.5B-LoRA-MultiTurn_1k"
-  run_name: "SFT-Qwen2-1.5B-LoRA-MultiTurn-complaint-agq-1k"
+  output_dir: "./SFT-Qwen3-1.7B-LoRA-MultiTurn-1k-T4-15GB"
+  run_name: "SFT-Qwen3-1.7B-LoRA-MultiTurn-complaint-agq-1k-T4-15GB"
   
-  # Batch Configuration (adjusted for 1.5B model)
+  # Batch Configuration
   per_device_train_batch_size: 1
   per_device_eval_batch_size: 1
-  gradient_accumulation_steps: 8  # Increase if OOM
+  gradient_accumulation_steps: 16
   
   # Memory Optimization
   gradient_checkpointing: true
@@ -62,7 +64,7 @@ training:
   
   # Training Parameters
   num_train_epochs: 3
-  learning_rate: 0.0002
+  learning_rate: 0.0001
   warmup_ratio: 0.03
   
   # Optimizer
@@ -116,25 +118,38 @@ callbacks:
   save_best_model:
     enabled: true
 
-# Chat Template Configuration for Qwen2
-# Qwen2 uses ChatML format with special tokens: <|im_start|> and <|im_end|>
+# Chat Template Configuration for Qwen3
 chat_template:
-  use_tokenizer_template: true  # Use tokenizer's built-in chat template
+  system_message: "Semua percakapan dilakukan dalam Bahasa Indonesia."
+  use_system_message: true
+  use_qwen_format: true
+  # Template for multi-turn conversations
+  conversation_template: |
+    <|im_start|>system
+    {system_message}<|im_end|>
+    <|im_start|>user
+    {input}<|im_end|>
+    <|im_start|>assistant
+    {output}<|im_end|>
 
 # Weights & Biases Configuration
 wandb:
   entity: "DTP2"
   project: "SFT_Pipeline_colab"
   tags:
-    - "qwen2"
-    - "qwen2-1.5b"
+    - "qwen3"
+    - "qwen3-1.7b"
     - "multi-turn"
     - "dtp_complaint_agq-1k"
     - "sft"
-  notes: "Fine-tuning Qwen2-1.5B on dtp_complaint_agq-1k dataset"
+    - "A100-80GB"
+    - "extreme-optimized"
+    - "beast-mode"
+  notes: "Fine-tuning Qwen3-1.7B on multi-turn complaint and AGQ dataset"
+
 # Paths (relative to project root)
 paths:
-  final_model_dir: "./SFT-Qwen2-1.5B-LoRA-MultiTurn-1k"
+  final_model_dir: "./SFT-Qwen3-1.7B-LoRA-MultiTurn-Complaint-AGQ-1k-T4-15GB"
   checkpoints_dir: "./checkpoints"
   logs_dir: "./logs"
 
@@ -157,7 +172,7 @@ evaluation:
 
 # Inference Configuration (for Gradio interface)
 inference:
-  max_new_tokens: 512
+  max_new_tokens: 2048
   temperature: 0.7
   top_p: 0.95
   top_k: 50
