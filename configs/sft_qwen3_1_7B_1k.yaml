@@ -42,7 +42,7 @@ dataset:
   test_size: 0.02
   seed: 42
   text_field: "text"
-  max_length: 4096
+  max_length: 2048
   # Additional dataset settings for multi-turn conversations
   conversation_field: "conversation"  # Field containing conversation data
   format_type: "multi_turn"  # single_turn or multi_turn
@@ -120,7 +120,7 @@ callbacks:
 
 # Chat Template Configuration for Qwen3
 chat_template:
-  system_message: "Anda adalah asisten AI yang membantu dan informatif. Berikan jawaban yang akurat, relevan, dan mudah dipahami."
+  system_message: "Semua percakapan dilakukan dalam Bahasa Indonesia."
   use_system_message: true
   use_qwen_format: true
   # Template for multi-turn conversations
@@ -141,7 +141,7 @@ wandb:
     - "multi-turn"
     - "dtp_complaint_agq-1k"
     - "sft"
-    - "A100-80GB"
+    - "T4-15GB"
     - "extreme-optimized"
     - "beast-mode"
   notes: "Fine-tuning Qwen3-1.7B on multi-turn complaint and AGQ dataset"

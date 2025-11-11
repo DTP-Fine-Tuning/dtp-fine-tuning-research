@@ -49,8 +49,8 @@ dataset:
 
 # Training Arguments
 training:
-  output_dir: "./SFT-Qwen3-1.7B-LoRA-MultiTurn-1k-T4-15GB"
-  run_name: "SFT-Qwen3-1.7B-LoRA-MultiTurn-complaint-agq-1k-T4-15GB"
+  output_dir: "./SFT-Qwen2-1.5B-LoRA-MultiTurn-1k-T4-15GB"
+  run_name: "SFT-Qwen2-1.5B-LoRA-MultiTurn-complaint-agq-1k-T4-15GB"
   
   # Batch Configuration
   per_device_train_batch_size: 1
@@ -138,18 +138,18 @@ wandb:
   project: "SFT_Pipeline_colab"
   tags:
     - "qwen3"
-    - "qwen3-1.7b"
+    - "qwen2-1.5b"
     - "multi-turn"
     - "dtp_complaint_agq-1k"
     - "sft"
-    - "A100-80GB"
+    - "T4-15GB"
     - "extreme-optimized"
     - "beast-mode"
-  notes: "Fine-tuning Qwen3-1.7B on multi-turn complaint and AGQ dataset"
+  notes: "Fine-tuning Qwen2-1.5B on multi-turn complaint and AGQ dataset"
 
 # Paths (relative to project root)
 paths:
-  final_model_dir: "./SFT-Qwen3-1.7B-LoRA-MultiTurn-Complaint-AGQ-1k-T4-15GB"
+  final_model_dir: "./SFT-Qwen2-1.5B-LoRA-MultiTurn-Complaint-AGQ-1k-T4-15GB"
   checkpoints_dir: "./checkpoints"
   logs_dir: "./logs"
 
