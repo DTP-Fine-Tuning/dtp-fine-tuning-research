@@ -3,7 +3,9 @@ import sys
 import torch
 import yaml
 import argparse
+import json
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Any
 from transformers import (
     AutoModelForCausalLM, 
     AutoTokenizer, 
@@ -11,10 +13,11 @@ from transformers import (
     EarlyStoppingCallback, 
     BitsAndBytesConfig
 )
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
 from trl import SFTTrainer, SFTConfig
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
 import wandb
+from datetime import datetime
 
 
 # Custom Callbacks
@@ -66,36 +69,61 @@ class SaveBestModelCallback(TrainerCallback):
                 print(f"\n🎉 New best model! Eval Loss: {current_metric:.4f}")
 
 
-def load_config(config_path):
+def load_config(config_path: str) -> Dict:
     """Load configuration from YAML file"""
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
     return config
 
 
-def setup_wandb(config):
+def save_training_info(config: Dict, output_dir: str):
+    """Save training configuration and metadata for later inference"""
+    training_info = {
+        "model_name": config['model']['name'],
+        "lora_config": config['lora'],
+        "tokenizer_config": config['tokenizer'],
+        "chat_template": config.get('chat_template', {}),
+        "training_completed": datetime.now().isoformat(),
+        "dataset_info": {
+            "name": config['dataset']['name'],
+            "max_length": config['dataset']['max_length']
+        }
+    }
+    
+    info_path = Path(output_dir) / "training_info.json"
+    with open(info_path, 'w') as f:
+        json.dump(training_info, f, indent=2)
+    print(f"Training info saved to: {info_path}")
+
+
+def setup_wandb(config: Dict):
     """Setup Weights & Biases environment variables"""
-    os.environ["WANDB_ENTITY"] = config['wandb']['entity']
-    os.environ["WANDB_PROJECT"] = config['wandb']['project']
+    if 'wandb' in config:
+        os.environ["WANDB_ENTITY"] = config['wandb']['entity']
+        os.environ["WANDB_PROJECT"] = config['wandb']['project']
 
 
-def create_tokenizer(config):
-    """Create and configure tokenizer"""
+def create_tokenizer(config: Dict) -> AutoTokenizer:
+    """Create and configure tokenizer for Llama 3.2"""
     tokenizer = AutoTokenizer.from_pretrained(
         config['model']['name'],
         trust_remote_code=config['tokenizer']['trust_remote_code'],
         padding_side=config['tokenizer']['padding_side']
     )
     
-    # Set pad token
+    # Set pad token for Llama
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.pad_token_id = tokenizer.eos_token_id
     
+    # Ensure special tokens are properly set for Llama 3.2
+    if not tokenizer.chat_template:
+        print("Warning: Chat template not found in tokenizer, will use manual formatting")
+    
     return tokenizer
 
 
-def create_quantization_config(config):
+def create_quantization_config(config: Dict) -> BitsAndBytesConfig:
     """Create BitsAndBytes quantization configuration"""
     quant_config = config['quantization']
     
@@ -115,13 +143,14 @@ def create_quantization_config(config):
     )
 
 
-def create_model(config, bnb_config):
-    """Create and configure model"""
+def create_model(config: Dict, bnb_config: BitsAndBytesConfig) -> AutoModelForCausalLM:
+    """Create and configure Llama 3.2 model"""
     model = AutoModelForCausalLM.from_pretrained(
         config['model']['name'],
         quantization_config=bnb_config,
         device_map="auto",
         trust_remote_code=config['model']['trust_remote_code'],
+        torch_dtype=torch.float16,  # Explicitly set dtype for Llama 3.2
     )
     
     # Prepare model for training
@@ -131,8 +160,8 @@ def create_model(config, bnb_config):
     return model
 
 
-def create_lora_config(config):
-    """Create LoRA configuration"""
+def create_lora_config(config: Dict) -> LoraConfig:
+    """Create LoRA configuration for Llama 3.2"""
     lora_cfg = config['lora']
     
     return LoraConfig(
@@ -145,8 +174,8 @@ def create_lora_config(config):
     )
 
 
-def load_and_prepare_dataset(config):
-    """Load and prepare dataset"""
+def load_and_prepare_dataset(config: Dict) -> Tuple[Dataset, Dataset]:
+    """Load and prepare dataset with improved multi-turn conversation support"""
     dataset_cfg = config['dataset']
     
     # Load dataset
@@ -161,36 +190,118 @@ def load_and_prepare_dataset(config):
     return dataset['train'], dataset['test']
 
 
-def format_conversation(example, config):
-    """Format dataset according to Llama 3.2 chat template"""
-    conversation = example.get("conversation", [])
+def format_conversation_llama(example: Dict, config: Dict) -> Dict[str, str]:
+    """Format dataset according to Llama 3.2 chat template with improved multi-turn handling"""
+    # Handle different dataset formats - prioritize 'messages' field
+    if 'messages' in example:
+        conversation = example['messages']
+    elif 'conversation' in example:
+        conversation = example['conversation']
+    elif 'conversations' in example:
+        conversation = example['conversations']
+    elif 'text' in example:
+        # If it's already formatted text, return as is
+        return {"text": example['text']}
+    else:
+        # Try to extract from other possible fields
+        conversation = []
+        if 'instruction' in example and 'output' in example:
+            conversation = [
+                {"role": "user", "content": example['instruction']},
+                {"role": "assistant", "content": example['output']}
+            ]
+        elif 'input' in example and 'output' in example:
+            conversation = [
+                {"role": "user", "content": example['input']},
+                {"role": "assistant", "content": example['output']}
+            ]
     
     # Start with the begin_of_text token
     formatted_text = "<|begin_of_text|>"
     
-    # Add system message
-    system_message = config['chat_template']['system_message']
-    formatted_text += f"<|start_header_id|>system<|end_header_id|>\n{system_message}<|eot_id|>"
-    
     # Process conversation turns
     for turn in conversation:
-        role = turn.get("role", "user")
-        content = turn.get("content", "")
+        if isinstance(turn, dict):
+            role = turn.get("role", "user")
+            content = turn.get("content", turn.get("value", ""))
+        else:
+            # Handle list format [role, content]
+            role = turn[0] if len(turn) > 0 else "user"
+            content = turn[1] if len(turn) > 1 else ""
         
-        if role == "user":
+        # Map roles to Llama 3.2 format
+        if role in ["user", "human", "Human"]:
             formatted_text += f"<|start_header_id|>user<|end_header_id|>\n{content}<|eot_id|>"
-        elif role == "assistant":
+        elif role in ["assistant", "ai", "bot", "gpt", "Assistant"]:
             formatted_text += f"<|start_header_id|>assistant<|end_header_id|>\n{content}<|eot_id|>"
+        elif role == "system":
+            # Handle system messages that appear in the conversation
+            formatted_text += f"<|start_header_id|>system<|end_header_id|>\n{content}<|eot_id|>"
     
     return {"text": formatted_text}
 
 
-def create_training_config(config):
-    """Create SFTConfig from configuration"""
+def format_with_tokenizer_template(
+    example: Dict, 
+    tokenizer: AutoTokenizer, 
+    config: Dict
+) -> Dict[str, str]:
+    """Alternative formatting using tokenizer's built-in chat template"""
+    # Handle different dataset formats - prioritize 'messages' field
+    if 'messages' in example:
+        conversation = example['messages']
+    elif 'conversation' in example:
+        conversation = example['conversation']
+    elif 'conversations' in example:
+        conversation = example['conversations']
+    else:
+        conversation = []
+    
+    # Prepare messages in the format expected by the tokenizer
+    messages = []
+    
+    # Add conversation turns
+    for turn in conversation:
+        if isinstance(turn, dict):
+            role = turn.get("role", "user")
+            content = turn.get("content", turn.get("value", ""))
+        else:
+            # Handle list format [role, content]
+            role = turn[0] if len(turn) > 0 else "user"
+            content = turn[1] if len(turn) > 1 else ""
+        
+        # Normalize role names for Llama 3.2
+        if role in ["human", "Human"]:
+            role = "user"
+        elif role in ["ai", "bot", "gpt", "Assistant"]:
+            role = "assistant"
+        
+        messages.append({"role": role, "content": content})
+    
+    # Use tokenizer's chat template
+    try:
+        text = tokenizer.apply_chat_template(
+            messages, 
+            tokenize=False, 
+            add_generation_prompt=False
+        )
+        return {"text": text}
+    except Exception as e:
+        print(f"Error applying chat template: {e}")
+        # Fallback to manual formatting
+        return format_conversation_llama(example, config)
+
+
+def create_training_config(config: Dict) -> SFTConfig:
+    """Create SFT training configuration"""
     train_cfg = config['training']
     
     # Handle gradient checkpointing kwargs
     grad_ckpt_kwargs = train_cfg.get('gradient_checkpointing_kwargs', {})
+    if isinstance(grad_ckpt_kwargs, dict) and 'use_reentrant' in grad_ckpt_kwargs:
+        grad_ckpt_kwargs = {"use_reentrant": grad_ckpt_kwargs['use_reentrant']}
+    else:
+        grad_ckpt_kwargs = {"use_reentrant": False}
     
     return SFTConfig(
         output_dir=train_cfg['output_dir'],
@@ -231,7 +342,7 @@ def create_training_config(config):
         save_total_limit=train_cfg['save_total_limit'],
         
         # Data configuration
-        max_seq_length=config['dataset']['max_length'],
+        max_length=config['dataset']['max_length'],
         dataset_text_field=train_cfg['dataset_text_field'],
         packing=train_cfg['packing'],
         dataloader_num_workers=train_cfg['dataloader_num_workers'],
@@ -247,7 +358,7 @@ def create_training_config(config):
     )
 
 
-def create_callbacks(config):
+def create_callbacks(config: Dict) -> List[TrainerCallback]:
     """Create training callbacks based on configuration"""
     callbacks = []
     callbacks_cfg = config['callbacks']
@@ -280,8 +391,8 @@ def create_callbacks(config):
     return callbacks
 
 
-def main(config_path):
-    """Main training function"""
+def main(config_path: str):
+    """Main training function with improved error handling and model saving"""
     # Load configuration
     print(f"\n{'='*50}")
     print(f"Loading configuration from: {config_path}")
@@ -292,7 +403,7 @@ def main(config_path):
     setup_wandb(config)
     
     # Create tokenizer
-    print("Creating tokenizer...")
+    print("Creating tokenizer for Llama 3.2...")
     tokenizer = create_tokenizer(config)
     
     # Create quantization config
@@ -315,14 +426,28 @@ def main(config_path):
     
     # Format datasets
     print("Formatting datasets with Llama 3.2 chat template...")
-    train_dataset = train_dataset.map(
-        lambda x: format_conversation(x, config),
-        remove_columns=train_dataset.column_names
-    )
-    eval_dataset = eval_dataset.map(
-        lambda x: format_conversation(x, config),
-        remove_columns=eval_dataset.column_names
-    )
+    
+    # Choose formatting method based on whether tokenizer has chat template
+    if hasattr(tokenizer, 'chat_template') and tokenizer.chat_template:
+        print("Using tokenizer's built-in chat template")
+        train_dataset = train_dataset.map(
+            lambda x: format_with_tokenizer_template(x, tokenizer, config),
+            remove_columns=train_dataset.column_names
+        )
+        eval_dataset = eval_dataset.map(
+            lambda x: format_with_tokenizer_template(x, tokenizer, config),
+            remove_columns=eval_dataset.column_names
+        )
+    else:
+        print("Using manual Llama 3.2 chat template formatting")
+        train_dataset = train_dataset.map(
+            lambda x: format_conversation_llama(x, config),
+            remove_columns=train_dataset.column_names
+        )
+        eval_dataset = eval_dataset.map(
+            lambda x: format_conversation_llama(x, config),
+            remove_columns=eval_dataset.column_names
+        )
     
     # Create training configuration
     print("Creating training configuration...")
@@ -364,11 +489,14 @@ def main(config_path):
     try:
         trainer.train()
     except torch.cuda.OutOfMemoryError:
-        print("\n⚠️ Out of memory error!")
+        print("\nOut of memory error!")
         print("Suggestions:")
         print("  - Reduce max_length in config")
         print("  - Reduce LoRA r value")
         print("  - Increase gradient_accumulation_steps")
+        raise
+    except Exception as e:
+        print(f"\nTraining failed with error: {e}")
         raise
     
     # Save final model
@@ -377,8 +505,25 @@ def main(config_path):
     print("="*50 + "\n")
     
     final_model_dir = config['paths']['final_model_dir']
+    
+    # Save the LoRA adapter
     trainer.save_model(final_model_dir)
+    
+    # Save tokenizer
     tokenizer.save_pretrained(final_model_dir)
+    
+    # Save training info for later inference
+    save_training_info(config, final_model_dir)
+    
+    # Also save the merged model if specified
+    if config.get('save_merged_model', False):
+        merged_dir = Path(final_model_dir).parent / f"{Path(final_model_dir).name}_merged"
+        print(f"Saving merged model to: {merged_dir}")
+        
+        # Merge LoRA weights with base model
+        merged_model = model.merge_and_unload()
+        merged_model.save_pretrained(merged_dir)
+        tokenizer.save_pretrained(merged_dir)
     
     # Print training summary
     if trainer.state.best_metric is not None:
@@ -386,7 +531,8 @@ def main(config_path):
         if trainer.state.best_model_checkpoint:
             print(f"Best model checkpoint: {trainer.state.best_model_checkpoint}")
     
-    print("\n✅ Training pipeline completed successfully!")
+    print("\nTraining pipeline completed successfully!")
+    print(f"Model saved to: {final_model_dir}")
     
     # Final memory check
     if torch.cuda.is_available():

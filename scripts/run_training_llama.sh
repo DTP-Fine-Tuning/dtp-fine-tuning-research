@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ################################################################################
-# Fine-Tuning Training Script for Qwen2-1.5B
+# Fine-Tuning Training Script for Llama 3.2-1B
 # This script runs the training process with configurable parameters
 # Must be run from project root: ~/dtp-fine-tuning-research/
 ################################################################################
@@ -15,12 +15,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Default values - Updated for Qwen2
-CONFIG_FILE="configs/sft_qwen2_1_5B_1k.yaml"
-TRAINING_SCRIPT="src/training/training_script_qwen2_sft.py"
+# Default values - Updated for Llama 3.2
+CONFIG_FILE="configs/sft_llama3.2_1B.yaml"
+TRAINING_SCRIPT="src/training/training_script_llama3_2.py"
 LOG_DIR="logs"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-LOG_FILE="${LOG_DIR}/training_qwen2_${TIMESTAMP}.log"
+LOG_FILE="${LOG_DIR}/training_llama_${TIMESTAMP}.log"
 
 ################################################################################
 # Helper Functions
@@ -57,7 +57,7 @@ verify_project_root() {
     if [ ! -d "scripts" ] || [ ! -d "src" ] || [ ! -d "configs" ]; then
         print_error "This script must be run from the project root directory"
         print_info "Current directory: $(pwd)"
-        print_info "Please cd to project root and run: ./scripts/run_training_qwen2.sh"
+        print_info "Please cd to project root and run: ./scripts/run_training_llama.sh"
         exit 1
     fi
 }
@@ -168,7 +168,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         -l|--log-dir)
             LOG_DIR="$2"
-            LOG_FILE="${LOG_DIR}/training_qwen2_${TIMESTAMP}.log"
+            LOG_FILE="${LOG_DIR}/training_llama_${TIMESTAMP}.log"
             shift 2
             ;;
         --skip-checks)
@@ -195,7 +195,7 @@ done
 # Main Execution
 ################################################################################
 
-print_header "Qwen2-1.5B Fine-Tuning Training"
+print_header "Llama 3.2-1B Fine-Tuning Training"
 
 # Verify we're in project root
 verify_project_root
