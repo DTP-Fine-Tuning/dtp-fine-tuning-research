@@ -83,9 +83,9 @@ training:
   # Logging & Evaluation
   logging_steps: 25
   eval_strategy: "steps"
-  eval_steps: 25
+  eval_steps: 200
   save_strategy: "steps"
-  save_steps: 25
+  save_steps: 200
   save_total_limit: 2
   
   # Data Configuration
