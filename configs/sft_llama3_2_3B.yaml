@@ -51,8 +51,8 @@ dataset:
 
 # Training Arguments
 training:
-  output_dir: "./SFT-Llama-3.2-1B-LoRA-MultiTurn_complaint_agq-1k"
-  run_name: "SFT-Llama-3.2-1B-LoRA-MultiTurn-complaint-agq-1k"
+  output_dir: "./SFT-Llama-3.2-3B-LoRA-MultiTurn_complaint_agq-1k"
+  run_name: "SFT-Llama-3.2-3B-LoRA-MultiTurn-complaint-agq-1k"
   
   # Batch Configuration
   per_device_train_batch_size: 4
@@ -135,15 +135,15 @@ wandb:
   project: "SFT_Pipeline_colab"
   tags:
     - "llama"
-    - "llama-3.2-1b"
+    - "llama-3.2-3b"
     - "multi-turn"
     - "dtp_complaint_agq-1k"
     - "sft"
-  notes: "Fine-tuning Llama 3.2 1B on indonesian conversation dataset"
+  notes: "Fine-tuning Llama 3.2 3B on complaint AGQ-1k dataset"
 
 # Paths (relative to project root)
 paths:
-  final_model_dir: "./SFT-Llama-3.2-1B-LoRA-MultiTurn_indo_complaint_agq-1k"
+  final_model_dir: "./SFT-Llama-3.2-3B-LoRA-MultiTurn_complaint_agq-1k"
   checkpoints_dir: "./checkpoints"
   logs_dir: "./logs"
 
