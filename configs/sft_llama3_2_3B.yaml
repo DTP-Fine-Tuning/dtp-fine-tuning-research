@@ -3,7 +3,7 @@
 
 # Model Configuration
 model:
-  name: "meta-llama/Llama-3.2-1B"
+  name: "meta-llama/Llama-3.2-3B"
   trust_remote_code: true
   use_cache: false
 
@@ -143,7 +143,7 @@ wandb:
 
 # Paths (relative to project root)
 paths:
-  final_model_dir: "./SFT-Llama-3.2-1B-LoRA-MultiTurn_complaint_agq-1k"
+  final_model_dir: "./SFT-Llama-3.2-1B-LoRA-MultiTurn_indo_complaint_agq-1k"
   checkpoints_dir: "./checkpoints"
   logs_dir: "./logs"
 
