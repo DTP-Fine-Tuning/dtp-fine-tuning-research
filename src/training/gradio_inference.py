@@ -317,11 +317,26 @@ class ChatInterface:
                     tokenize=False,
                     add_generation_prompt=True
                 )
+                logger.debug(f"Using tokenizer chat template")
                 return prompt
             except Exception as e:
-                logger.warning(f"Failed to use chat template: {e}, falling back to simple format")
+                logger.warning(f"Failed to use chat template: {e}, falling back to manual format")
 
-        # Fallback: simple format
+        # Fallback: Manual Llama 3 format
+        if self.model_family == 'llama':
+            logger.info("Using manual Llama 3 chat format")
+            prompt = "<|begin_of_text|>"
+
+            for msg in messages:
+                role = msg["role"]
+                content = msg["content"]
+                prompt += f"<|start_header_id|>{role}<|end_header_id|>\n\n{content}<|eot_id|>"
+
+            # Add generation prompt for assistant
+            prompt += "<|start_header_id|>assistant<|end_header_id|>\n\n"
+            return prompt
+
+        # Fallback for other models: simple format
         prompt = ""
         for msg in messages:
             role = msg["role"]
