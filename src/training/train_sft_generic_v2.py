@@ -474,7 +474,9 @@ def setup_chat_template(tokenizer: AutoTokenizer, model_name: str, config: Dict)
     family = detect_model_family(model_name)
 
     if family == 'llama':
+        # Llama 3 style template with <|begin_of_text|>
         tokenizer.chat_template = (
+            "{{ '<|begin_of_text|>' }}"
             "{% for message in messages %}"
             "{% if message['role'] == 'system' %}"
             "{{ '<|start_header_id|>system<|end_header_id|>\n\n' + message['content'] + '<|eot_id|>' }}"
@@ -488,7 +490,7 @@ def setup_chat_template(tokenizer: AutoTokenizer, model_name: str, config: Dict)
             "{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}"
             "{% endif %}"
         )
-        print(f"[DONE] Applied default Llama chat template")
+        print(f"[DONE] Applied default Llama 3 chat template with <|begin_of_text|>")
 
     elif family == 'qwen':
         tokenizer.chat_template = (
