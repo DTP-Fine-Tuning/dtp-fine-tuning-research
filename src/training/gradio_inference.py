@@ -38,7 +38,7 @@ MODEL_FAMILIES = {
     'llama': {
         'patterns': ['llama', 'llama-2', 'llama-3', 'codellama'],
         'default_system_message': 'You are a helpful, respectful and honest assistant.',
-        'stop_strings': ['<|eot_id|>', '<|end_of_text|>', '<|im_end|>', '\n\nuser', '\n\nUser:', 'user\n', 'User\n'],
+        'stop_strings': ['<|eot_id|>', '<|end_of_text|>', '<|start_header_id|>user<|end_header_id|>'],
     },
     'qwen': {
         'patterns': ['qwen', 'qwen2', 'qwen2.5', 'qwen3'],
@@ -374,7 +374,12 @@ class ChatInterface:
         
         # Format prompt
         prompt = self.format_prompt(message, history, system_message)
-        
+
+        # Debug: Log prompt (first 200 chars and last 200 chars)
+        logger.info(f"Prompt start: {prompt[:200]}")
+        logger.info(f"Prompt end: {prompt[-200:]}")
+        logger.info(f"Total prompt length: {len(prompt)} chars")
+
         # Tokenize input
         inputs = self.tokenizer(
             prompt,
@@ -410,24 +415,38 @@ class ChatInterface:
 
             # Stream output with stop string detection
             generated_text = ""
+            min_length = 10  # Minimum characters before checking stop strings
+
             for new_text in self.streamer:
                 generated_text += new_text
 
-                # Check for stop strings
+                # Only check for stop strings after generating minimum length
+                # and only check if stop string appears near the end
                 should_stop = False
-                for stop_str in self.stop_strings:
-                    if stop_str in generated_text:
-                        # Truncate at the stop string
-                        generated_text = generated_text.split(stop_str)[0].strip()
-                        should_stop = True
-                        break
+                if len(generated_text.strip()) >= min_length:
+                    for stop_str in self.stop_strings:
+                        # Check if stop string is at the end or near the end (last 50 chars)
+                        check_region = generated_text[-50:] if len(generated_text) > 50 else generated_text
+                        if stop_str in check_region:
+                            # Find the position and truncate
+                            idx = generated_text.rfind(stop_str)
+                            if idx != -1:
+                                generated_text = generated_text[:idx].strip()
+                                should_stop = True
+                                break
 
-                yield generated_text
+                # Only yield if we have content
+                if generated_text.strip():
+                    yield generated_text
 
                 if should_stop:
                     break
 
             thread.join()
+
+            # Final yield with cleaned text
+            if generated_text.strip():
+                yield generated_text
         else:
             with torch.no_grad():
                 output = self.model.generate(**generation_kwargs)
@@ -438,12 +457,20 @@ class ChatInterface:
                 skip_special_tokens=True
             )
 
-            # Check for stop strings in non-streaming mode
-            for stop_str in self.stop_strings:
-                if stop_str in generated_text:
-                    generated_text = generated_text.split(stop_str)[0].strip()
-                    break
+            logger.info(f"Generated (before stop check): {generated_text[:100]}...")
 
+            # Check for stop strings in non-streaming mode (only near the end)
+            for stop_str in self.stop_strings:
+                # Check if stop string is in the last 100 characters
+                check_region = generated_text[-100:] if len(generated_text) > 100 else generated_text
+                if stop_str in check_region:
+                    idx = generated_text.rfind(stop_str)
+                    if idx != -1:
+                        generated_text = generated_text[:idx].strip()
+                        logger.info(f"Stopped at: {stop_str}")
+                        break
+
+            logger.info(f"Final output length: {len(generated_text)}")
             yield generated_text
     
     def clear_conversation(self):
