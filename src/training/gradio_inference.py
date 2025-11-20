@@ -38,22 +38,27 @@ MODEL_FAMILIES = {
     'llama': {
         'patterns': ['llama', 'llama-2', 'llama-3', 'codellama'],
         'default_system_message': 'You are a helpful, respectful and honest assistant.',
+        'stop_strings': ['<|eot_id|>', '<|end_of_text|>', '<|im_end|>', '\n\nuser', '\n\nUser:', 'user\n', 'User\n'],
     },
     'qwen': {
         'patterns': ['qwen', 'qwen2', 'qwen2.5', 'qwen3'],
         'default_system_message': 'You are a helpful assistant.',
+        'stop_strings': ['<|im_end|>', '<|endoftext|>', '\n\nuser', '\n\nUser:'],
     },
     'mistral': {
         'patterns': ['mistral', 'mixtral'],
         'default_system_message': 'You are a helpful assistant.',
+        'stop_strings': ['</s>', '[INST]', '\n\nuser', '\n\nUser:'],
     },
     'gemma': {
         'patterns': ['gemma'],
         'default_system_message': 'You are a helpful assistant.',
+        'stop_strings': ['<end_of_turn>', '<eos>', '\n\nuser', '\n\nUser:'],
     },
     'phi': {
         'patterns': ['phi-2', 'phi-3'],
         'default_system_message': 'You are a helpful assistant.',
+        'stop_strings': ['<|endoftext|>', '<|end|>', '\n\nuser', '\n\nUser:'],
     },
 }
 
@@ -118,6 +123,7 @@ class ChatInterface:
         # Load model configuration
         self.base_model_name = base_model_name
         self.model_family = None
+        self.stop_strings = []
         self.load_model_config()
 
         # Initialize model and tokenizer
@@ -128,8 +134,12 @@ class ChatInterface:
         # Load model
         self.load_model(load_in_4bit)
 
+        # Get stop strings after tokenizer is loaded
+        self.setup_stop_tokens()
+
         logger.info(f"Model loaded successfully from {model_path}")
         logger.info(f"Detected model family: {self.model_family or 'unknown'}")
+        logger.info(f"Stop strings: {self.stop_strings}")
     
     def load_model_config(self):
         """Load model configuration from training_info.json if available"""
@@ -241,7 +251,23 @@ class ChatInterface:
         )
         
         logger.info("Model loaded successfully!")
-    
+
+    def setup_stop_tokens(self):
+        """Setup stop strings based on model family and tokenizer"""
+        # Get stop strings from model family config
+        if self.model_family and self.model_family in MODEL_FAMILIES:
+            self.stop_strings = MODEL_FAMILIES[self.model_family]['stop_strings'].copy()
+        else:
+            # Default stop strings
+            self.stop_strings = ['\n\nuser', '\n\nUser:', 'user\n', 'User\n']
+
+        # Add tokenizer's EOS token if available
+        if hasattr(self.tokenizer, 'eos_token') and self.tokenizer.eos_token:
+            if self.tokenizer.eos_token not in self.stop_strings:
+                self.stop_strings.append(self.tokenizer.eos_token)
+
+        logger.info(f"Configured stop strings: {self.stop_strings}")
+
     def format_prompt(
         self,
         message: str,
@@ -377,28 +403,47 @@ class ChatInterface:
         
         if stream:
             generation_kwargs["streamer"] = self.streamer
-            
+
             # Start generation in a separate thread
             thread = Thread(target=self.model.generate, kwargs=generation_kwargs)
             thread.start()
-            
-            # Stream output
+
+            # Stream output with stop string detection
             generated_text = ""
             for new_text in self.streamer:
                 generated_text += new_text
+
+                # Check for stop strings
+                should_stop = False
+                for stop_str in self.stop_strings:
+                    if stop_str in generated_text:
+                        # Truncate at the stop string
+                        generated_text = generated_text.split(stop_str)[0].strip()
+                        should_stop = True
+                        break
+
                 yield generated_text
-            
+
+                if should_stop:
+                    break
+
             thread.join()
         else:
             with torch.no_grad():
                 output = self.model.generate(**generation_kwargs)
-            
+
             # Decode output
             generated_text = self.tokenizer.decode(
                 output[0][len(inputs["input_ids"][0]):],
                 skip_special_tokens=True
             )
-            
+
+            # Check for stop strings in non-streaming mode
+            for stop_str in self.stop_strings:
+                if stop_str in generated_text:
+                    generated_text = generated_text.split(stop_str)[0].strip()
+                    break
+
             yield generated_text
     
     def clear_conversation(self):
