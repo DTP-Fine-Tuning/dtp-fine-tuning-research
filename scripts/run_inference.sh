@@ -1,8 +1,9 @@
 #!/bin/bash
 
 ################################################################################
-# Gradio Inference Script for Qwen3 Fine-tuned Model
-# This script launches the Gradio web interface for interacting with the model
+# Gradio Inference Script for Fine-tuned Models
+# This script launches the Gradio web interface for interacting with models
+# Supports: Llama, Qwen, Mistral, Gemma, Phi, and other model families
 # Must be run from project root: ~/dtp-fine-tuning-research/
 ################################################################################
 
@@ -199,8 +200,11 @@ EXAMPLES:
     # Run with auto-detected latest model
     ./scripts/run_inference.sh
 
-    # Run with specific model path
-    ./scripts/run_inference.sh -m src/training/SFT-Qwen3-1.7B-LoRA-9GB-final
+    # Run with specific Qwen model
+    ./scripts/run_inference.sh -m src/training/SFT-Qwen3-1.7B-LoRA-final
+
+    # Run with Llama model
+    ./scripts/run_inference.sh -m src/training/SFT-Llama3-1B-LoRA-final
 
     # Run on specific port and share publicly
     ./scripts/run_inference.sh -p 8080 -s
@@ -256,7 +260,7 @@ done
 # Main Execution
 ################################################################################
 
-print_header "Qwen3 Model Inference - Gradio Interface"
+print_header "Fine-tuned Model Inference - Gradio Interface"
 
 # Verify we're in project root
 verify_project_root
@@ -339,16 +343,39 @@ import json
 try:
     with open("$MODEL_PATH/training_info.json", 'r') as f:
         info = json.load(f)
-    
+
+    model_family = info.get('model_family', 'Unknown')
+    print(f"Model Family: {model_family.upper() if model_family != 'Unknown' else model_family}")
     print(f"Base Model: {info.get('model_name', 'Unknown')}")
     print(f"Training Completed: {info.get('training_completed', 'Unknown')}")
     print(f"Dataset: {info.get('dataset_info', {}).get('name', 'Unknown')}")
     print(f"Max Length: {info.get('dataset_info', {}).get('max_length', 'Unknown')}")
+
+    # Show LoRA configuration
+    lora_config = info.get('lora_config', {})
+    if lora_config:
+        print(f"LoRA Rank (r): {lora_config.get('r', 'Unknown')}")
+        print(f"LoRA Alpha: {lora_config.get('lora_alpha', 'Unknown')}")
 except Exception as e:
     print(f"Could not read training info: {e}")
 EOF
 else
     print_warning "training_info.json not found in model directory"
+    # Try to detect from adapter_config.json
+    if [ -f "$MODEL_PATH/adapter_config.json" ]; then
+        print_info "Found adapter_config.json, reading base model info..."
+        python - <<EOF
+import json
+try:
+    with open("$MODEL_PATH/adapter_config.json", 'r') as f:
+        config = json.load(f)
+    print(f"Base Model: {config.get('base_model_name_or_path', 'Unknown')}")
+    print(f"LoRA Rank (r): {config.get('r', 'Unknown')}")
+    print(f"LoRA Alpha: {config.get('lora_alpha', 'Unknown')}")
+except Exception as e:
+    print(f"Could not read adapter config: {e}")
+EOF
+    fi
 fi
 echo
 
