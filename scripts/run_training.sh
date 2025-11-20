@@ -1,8 +1,9 @@
 #!/bin/bash
 
 ################################################################################
-# Fine-Tuning Training Script for Qwen3-1.7B
+# Generic SFT Fine-Tuning Training Script
 # This script runs the training process with configurable parameters
+# Supports: Llama, Qwen, Mistral, Gemma, Phi models
 # Must be run from project root: ~/dtp-fine-tuning-research/
 ################################################################################
 
@@ -15,9 +16,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Default values - Updated for correct directory structure
+# Default values - Updated for generic training script
 CONFIG_FILE="configs/sft_qwen3_1_7B_improved.yaml"
-TRAINING_SCRIPT="src/training/training_script_qwen3_improved.py"
+TRAINING_SCRIPT="src/training/train_sft_generic_v2.py"
 LOG_DIR="logs"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_FILE="${LOG_DIR}/training_${TIMESTAMP}.log"
@@ -90,7 +91,7 @@ check_dependencies() {
     if [ $? -ne 0 ]; then
         print_warning "Some required packages are missing. Installing dependencies..."
         if [ -f "requirements.txt" ]; then
-            pip install -r requirements.txt
+            pip install --progress-bar on -r requirements.txt
         else
             print_error "requirements.txt not found. Please run ./scripts/setup.sh first"
             exit 1
