@@ -1,6 +1,7 @@
 """
-Gradio Interface for Qwen3 Fine-tuned Model
-This script provides an interactive web interface for chatting with the fine-tuned model.
+Gradio Interface for Fine-tuned Models
+This script provides an interactive web interface for chatting with fine-tuned models.
+Supports: Llama, Qwen, Mistral, Gemma, Phi, and other model families.
 """
 
 import os
@@ -29,9 +30,57 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class Qwen3ChatInterface:
-    """Main class for Qwen3 chat interface with Gradio"""
-    
+# ============================================================================
+# Model Family Configuration Registry
+# ============================================================================
+
+MODEL_FAMILIES = {
+    'llama': {
+        'patterns': ['llama', 'llama-2', 'llama-3', 'codellama'],
+        'default_system_message': 'You are a helpful, respectful and honest assistant.',
+    },
+    'qwen': {
+        'patterns': ['qwen', 'qwen2', 'qwen2.5', 'qwen3'],
+        'default_system_message': 'You are a helpful assistant.',
+    },
+    'mistral': {
+        'patterns': ['mistral', 'mixtral'],
+        'default_system_message': 'You are a helpful assistant.',
+    },
+    'gemma': {
+        'patterns': ['gemma'],
+        'default_system_message': 'You are a helpful assistant.',
+    },
+    'phi': {
+        'patterns': ['phi-2', 'phi-3'],
+        'default_system_message': 'You are a helpful assistant.',
+    },
+}
+
+
+def detect_model_family(model_name: str) -> Optional[str]:
+    """
+    Detect the model family from model name.
+
+    Args:
+        model_name: HuggingFace model identifier
+
+    Returns:
+        Model family name or None if not recognized
+    """
+    model_name_lower = model_name.lower()
+
+    for family, config in MODEL_FAMILIES.items():
+        for pattern in config['patterns']:
+            if pattern in model_name_lower:
+                return family
+
+    return None
+
+
+class ChatInterface:
+    """Main class for multi-model chat interface with Gradio"""
+
     def __init__(
         self,
         model_path: str,
@@ -46,9 +95,9 @@ class Qwen3ChatInterface:
     ):
         """
         Initialize the chat interface
-        
+
         Args:
-            model_path: Path to the fine-tuned model (LoRA adapter)
+            model_path: Path to the fine-tuned model (LoRA adapter or merged model)
             base_model_name: Base model name (if not provided, will try to read from training_info.json)
             load_in_4bit: Whether to load model in 4-bit quantization
             device: Device to use (cuda/cpu)
@@ -65,32 +114,35 @@ class Qwen3ChatInterface:
         self.top_p = top_p
         self.top_k = top_k
         self.repetition_penalty = repetition_penalty
-        
+
         # Load model configuration
         self.base_model_name = base_model_name
+        self.model_family = None
         self.load_model_config()
-        
+
         # Initialize model and tokenizer
         self.model = None
         self.tokenizer = None
         self.streamer = None
-        
+
         # Load model
         self.load_model(load_in_4bit)
-        
+
         logger.info(f"Model loaded successfully from {model_path}")
+        logger.info(f"Detected model family: {self.model_family or 'unknown'}")
     
     def load_model_config(self):
         """Load model configuration from training_info.json if available"""
         training_info_path = self.model_path / "training_info.json"
-        
+
         if training_info_path.exists():
             with open(training_info_path, 'r') as f:
                 training_info = json.load(f)
-                
+
             if not self.base_model_name:
                 self.base_model_name = training_info.get("model_name")
-            
+
+            self.model_family = training_info.get("model_family")
             self.chat_template_config = training_info.get("chat_template", {})
             logger.info(f"Loaded training configuration from {training_info_path}")
         else:
@@ -101,12 +153,23 @@ class Qwen3ChatInterface:
                     adapter_config = json.load(f)
                     if not self.base_model_name:
                         self.base_model_name = adapter_config.get("base_model_name_or_path")
-            
-            self.chat_template_config = {
-                "system_message": "You are a helpful assistant.",
-                "use_system_message": True
-            }
+
+            self.chat_template_config = {}
             logger.warning("training_info.json not found, using default configuration")
+
+        # Detect model family if not already set
+        if not self.model_family and self.base_model_name:
+            self.model_family = detect_model_family(self.base_model_name)
+
+        # Set default system message based on model family
+        if not self.chat_template_config.get("system_message"):
+            if self.model_family and self.model_family in MODEL_FAMILIES:
+                self.chat_template_config["system_message"] = MODEL_FAMILIES[self.model_family]['default_system_message']
+            else:
+                self.chat_template_config["system_message"] = "You are a helpful assistant."
+
+        if "use_system_message" not in self.chat_template_config:
+            self.chat_template_config["use_system_message"] = True
     
     def load_model(self, load_in_4bit: bool = True):
         """Load the fine-tuned model and tokenizer"""
@@ -186,13 +249,13 @@ class Qwen3ChatInterface:
         system_message: Optional[str] = None
     ) -> str:
         """
-        Format the conversation history and current message into a prompt
-        
+        Format the conversation history and current message into a prompt using tokenizer's chat template.
+
         Args:
             message: Current user message
             history: List of (user, assistant) message tuples
             system_message: System message to use
-            
+
         Returns:
             Formatted prompt string
         """
@@ -202,25 +265,49 @@ class Qwen3ChatInterface:
                 "system_message",
                 "You are a helpful assistant."
             )
-        
-        # Build conversation with Qwen3 format
-        prompt = ""
-        
+
+        # Build messages list
+        messages = []
+
         # Add system message
-        if self.chat_template_config.get("use_system_message", True):
-            prompt += f"<|im_start|>system\n{system_message}<|im_end|>\n"
-        
+        if self.chat_template_config.get("use_system_message", True) and system_message:
+            messages.append({"role": "system", "content": system_message})
+
         # Add conversation history
         for user_msg, assistant_msg in history:
             if user_msg:
-                prompt += f"<|im_start|>user\n{user_msg}<|im_end|>\n"
+                messages.append({"role": "user", "content": user_msg})
             if assistant_msg:
-                prompt += f"<|im_start|>assistant\n{assistant_msg}<|im_end|>\n"
-        
+                messages.append({"role": "assistant", "content": assistant_msg})
+
         # Add current message
-        prompt += f"<|im_start|>user\n{message}<|im_end|>\n"
-        prompt += "<|im_start|>assistant\n"
-        
+        messages.append({"role": "user", "content": message})
+
+        # Use tokenizer's chat template if available
+        if hasattr(self.tokenizer, 'apply_chat_template') and self.tokenizer.chat_template:
+            try:
+                prompt = self.tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True
+                )
+                return prompt
+            except Exception as e:
+                logger.warning(f"Failed to use chat template: {e}, falling back to simple format")
+
+        # Fallback: simple format
+        prompt = ""
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            if role == "system":
+                prompt += f"System: {content}\n\n"
+            elif role == "user":
+                prompt += f"User: {content}\n\n"
+            elif role == "assistant":
+                prompt += f"Assistant: {content}\n\n"
+
+        prompt += "Assistant: "
         return prompt
     
     def generate_response(
@@ -322,16 +409,16 @@ class Qwen3ChatInterface:
 def create_gradio_interface(model_path: str, **kwargs):
     """
     Create a Gradio interface for the chat model
-    
+
     Args:
         model_path: Path to the fine-tuned model
-        **kwargs: Additional arguments for Qwen3ChatInterface
-        
+        **kwargs: Additional arguments for ChatInterface
+
     Returns:
         Gradio interface
     """
     # Initialize chat interface
-    chat_interface = Qwen3ChatInterface(model_path, **kwargs)
+    chat_interface = ChatInterface(model_path, **kwargs)
     
     # Define the chat function for Gradio
     def chat_fn(
@@ -361,12 +448,16 @@ def create_gradio_interface(model_path: str, **kwargs):
             yield response
     
     # Create Gradio interface
-    with gr.Blocks(title="Qwen3 Chat Interface", theme=gr.themes.Soft()) as interface:
+    model_display_name = chat_interface.model_family.upper() if chat_interface.model_family else "LLM"
+    with gr.Blocks(title=f"{model_display_name} Chat Interface", theme=gr.themes.Soft()) as interface:
         gr.Markdown(
-            """
-            # Qwen3 Fine-tuned Model Chat Interface
-            
-            This interface allows you to interact with your fine-tuned Qwen3 model.
+            f"""
+            # {model_display_name} Fine-tuned Model Chat Interface
+
+            This interface allows you to interact with your fine-tuned model.
+            **Model Family**: {chat_interface.model_family or 'Generic'}
+            **Base Model**: {chat_interface.base_model_name}
+
             Adjust the parameters on the right to control the generation behavior.
             """
         )
@@ -454,7 +545,9 @@ def create_gradio_interface(model_path: str, **kwargs):
                 gr.Markdown(f"""
                 - **Model Path**: {model_path}
                 - **Base Model**: {chat_interface.base_model_name}
+                - **Model Family**: {chat_interface.model_family or 'Unknown'}
                 - **Device**: {chat_interface.device}
+                - **Quantization**: {'4-bit' if kwargs.get('load_in_4bit', True) else 'Full precision'}
                 """)
         
         # Event handlers
@@ -541,8 +634,10 @@ def create_gradio_interface(model_path: str, **kwargs):
 def main():
     """Main function to run the Gradio interface"""
     import argparse
-    
-    parser = argparse.ArgumentParser(description="Gradio interface for Qwen3 fine-tuned model")
+
+    parser = argparse.ArgumentParser(
+        description="Gradio interface for fine-tuned models (Llama, Qwen, Mistral, Gemma, etc.)"
+    )
     parser.add_argument(
         "--model-path",
         type=str,
