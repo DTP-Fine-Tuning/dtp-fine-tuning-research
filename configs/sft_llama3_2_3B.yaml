@@ -30,9 +30,9 @@ lora:
     - "k_proj"
     - "v_proj"
     - "o_proj"
-    # - "gate_proj"
-    # - "up_proj"
-    # - "down_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
   lora_dropout: 0.05
   bias: "none"
   task_type: "CAUSAL_LM"
@@ -55,8 +55,8 @@ training:
   run_name: "SFT-Llama-3.2-3B-LoRA-MultiTurn-complaint-agq-1k"
   
   # Batch Configuration
-  per_device_train_batch_size: 4
-  per_device_eval_batch_size: 4
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
   gradient_accumulation_steps: 1
   
   # Memory Optimization
