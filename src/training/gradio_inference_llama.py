@@ -216,8 +216,8 @@ class LlamaChatInterface:
         prompt = "<|begin_of_text|>"
         
         # Add system message if enabled
-        if self.chat_template_config.get("use_system_message", True):
-            prompt += f"<|start_header_id|>system<|end_header_id|>\n{system_message}<|eot_id|>"
+        # if self.chat_template_config.get("use_system_message", True):
+        #     prompt += f"<|start_header_id|>system<|end_header_id|>\n{system_message}<|eot_id|>"
         
         # Add conversation history
         for user_msg, assistant_msg in history:
