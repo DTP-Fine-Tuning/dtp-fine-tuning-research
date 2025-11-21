@@ -269,7 +269,7 @@ class LlamaChatInterface:
         repetition_penalty = repetition_penalty if repetition_penalty is not None else self.repetition_penalty
         
         # Format prompt
-        prompt = self.format_prompt(sanitize_user_input(message), history, system_message)
+        prompt = self.format_prompt(self.sanitize_user_input(message), history, system_message)
         # Tokenize input
         inputs = self.tokenizer(
             prompt,
