@@ -21,7 +21,19 @@ from transformers import (
     BitsAndBytesConfig
 )
 from datasets import load_dataset, Dataset
-from trl import SFTTrainer, SFTConfig, DataCollatorForCompletionOnlyLM
+from trl import SFTTrainer, SFTConfig
+
+# Try to import DataCollatorForCompletionOnlyLM (version compatibility)
+DataCollatorForCompletionOnlyLM = None
+try:
+    from trl import DataCollatorForCompletionOnlyLM
+except ImportError:
+    try:
+        from transformers import DataCollatorForCompletionOnlyLM
+    except ImportError:
+        print("⚠️  DataCollatorForCompletionOnlyLM not found - will use SFTTrainer's default")
+        pass
+
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
 import wandb
 from datetime import datetime
@@ -236,7 +248,7 @@ def upload_model_to_wandb(config: Dict, model_dir: str, model_family: str, artif
     """
     # Check if W&B is enabled
     if config.get('training', {}).get('report_to', 'none') == 'none':
-        print("⏭️  W&B logging disabled, skipping artifact upload")
+        print("⚠️  W&B logging disabled, skipping artifact upload")
         return
 
     if not os.environ.get('WANDB_API_KEY'):
@@ -637,8 +649,8 @@ def create_training_config(config: Dict) -> SFTConfig:
         lr_scheduler_type=train_cfg.get('lr_scheduler_type', 'cosine'),
 
         # Precision
-        bf16=train_cfg.get('bf16', False),
-        fp16=train_cfg.get('fp16', True),
+        bf16=train_cfg.get('bf16', True),
+        fp16=train_cfg.get('fp16', False),
 
         # Logging & Evaluation
         logging_steps=train_cfg.get('logging_steps', 25),
@@ -649,7 +661,7 @@ def create_training_config(config: Dict) -> SFTConfig:
         save_total_limit=train_cfg.get('save_total_limit', 2),
 
         # Data configuration
-        max_seq_length=config['dataset']['max_length'],
+        max_length=config['dataset']['max_length'],
         dataset_text_field=train_cfg.get('dataset_text_field', 'text'),
         packing=train_cfg.get('packing', False),
         dataloader_num_workers=train_cfg.get('dataloader_num_workers', 0),
@@ -773,13 +785,19 @@ def main(config_path: str):
     # Get response template for instruction masking
     response_template = get_response_template(model_name, tokenizer, config)
 
-    # Create data collator for instruction masking
-    print(f"\n🎭 Setting up instruction masking with response template: {repr(response_template)}")
-    data_collator = DataCollatorForCompletionOnlyLM(
-        response_template=response_template,
-        tokenizer=tokenizer,
-        mlm=False
-    )
+    # Create data collator for instruction masking (if available)
+    data_collator = None
+    if DataCollatorForCompletionOnlyLM is not None:
+        print(f"\n🎭 Setting up instruction masking with response template: {repr(response_template)}")
+        data_collator = DataCollatorForCompletionOnlyLM(
+            response_template=response_template,
+            tokenizer=tokenizer,
+            mlm=False
+        )
+    else:
+        print(f"\n⚠️  Using SFTTrainer's default data collator")
+        print(f"   Response template would be: {repr(response_template)}")
+        print(f"   Note: Upgrade TRL for explicit instruction masking")
 
     # Create training configuration
     print("\n⚙ Creating training configuration...")
@@ -802,7 +820,7 @@ def main(config_path: str):
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        data_collator=data_collator,  # Add instruction masking
+        data_collator=data_collator,
         processing_class=tokenizer,
         callbacks=callbacks,
     )
@@ -823,8 +841,11 @@ def main(config_path: str):
     print(f"Learning Rate:            {config['training']['learning_rate']}")
     print(f"Epochs:                   {config['training']['num_train_epochs']}")
     print(f"Optimizer:                {config['training'].get('optim', 'paged_adamw_8bit')}")
-    print(f"Instruction Masking:      ✓ Enabled")
-    print(f"Response Template:        {repr(response_template)}")
+    if DataCollatorForCompletionOnlyLM is not None:
+        print(f"Instruction Masking:      ✓ Enabled")
+        print(f"Response Template:        {repr(response_template)}")
+    else:
+        print(f"Instruction Masking:      ⚠️  Using SFTTrainer default")
     if config.get('callbacks', {}).get('early_stopping', {}).get('enabled'):
         print(f"Early Stopping Patience:  {config['callbacks']['early_stopping']['patience']}")
     print("="*70 + "\n")
@@ -874,7 +895,7 @@ def main(config_path: str):
         merged_model.save_pretrained(merged_dir)
         tokenizer.save_pretrained(merged_dir)
 
-        # Upload merged model to W&B as separate artifact
+        # Upload merged model to W&B
         upload_model_to_wandb(
             config,
             str(merged_dir),
