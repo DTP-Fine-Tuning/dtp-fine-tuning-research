@@ -37,7 +37,7 @@ lora:
 
 # Dataset Configuration
 dataset:
-  name: "dtp-fine-tuning/dtp-multiturn-interview-50k-combined"
+  name: "dtp-fine-tuning/dtp-multiturn-interview-10k-combined"
   split: "train"
   test_size: 0.1  # 10% for evaluation
   seed: 42
@@ -45,8 +45,8 @@ dataset:
 
 # Training Arguments
 training:
-  output_dir: "/content/drive/MyDrive/TIM 2 DTP/SFT-Llama3.1-8B-Unsloth-final-50k/output"
-  run_name: "SFT-Llama3.1-8B-Unsloth-MultiTurn-50k"
+  output_dir: "/content/drive/MyDrive/TIM 2 DTP/SFT-Llama3.1-8B-Unsloth-final-10k/output"
+  run_name: "SFT-Llama3.1-8B-Unsloth-MultiTurn-10k"
 
   # ⭐ IMPORTANT: Enable instruction masking (train only on assistant responses)
   assistant_only_loss: true
@@ -150,7 +150,7 @@ wandb:
 
 # Paths
 paths:
-  final_model_dir: "/content/drive/MyDrive/TIM 2 DTP/SFT-Llama3.1-8B-Unsloth-final-50k"
+  final_model_dir: "/content/drive/MyDrive/TIM 2 DTP/SFT-Llama3.1-8B-Unsloth-final-10k"
   checkpoints_dir: "./checkpoints"
   logs_dir: "./logs"
 
