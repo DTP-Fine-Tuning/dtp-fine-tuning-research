@@ -179,9 +179,9 @@ class LlamaChatInterface:
         
         logger.info("Model loaded successfully!")
     
-    def sanitize_user_input(text: str) -> str:
+    def sanitize_user_input(self, text: str) -> str:
         # Hindari input dianggap sebagai percakapan multi-turn
-        prohibited = ["user:", "assistant:", "<|start_header_id|>"]
+        prohibited = ["user:", "assistant:", "<|start_header_id|>", "<|eot_id|>"]
         for p in prohibited:
             text = text.replace(p, "")
         return text.strip()
