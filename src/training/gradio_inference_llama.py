@@ -104,7 +104,7 @@ class LlamaChatInterface:
             
             self.chat_template_config = {
                 "system_message": "Anda adalah asisten AI yang membantu dan informatif.",
-                "use_system_message": True
+                "use_system_message": False
             }
             logger.warning("training_info.json not found, using default configuration")
     
@@ -129,6 +129,15 @@ class LlamaChatInterface:
             padding_side="left"
         )
         
+        # --------- PATCH ---------
+        # Disable ANY chat template from tokenizer/model
+        if hasattr(self.tokenizer, "chat_template"):
+            self.tokenizer.chat_template = None
+
+        if hasattr(self.model.config, "chat_template"):
+            self.model.config.chat_template = None
+        # --------------------------
+
         # Ensure padding token is set
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
