@@ -128,16 +128,7 @@ class LlamaChatInterface:
             trust_remote_code=True,
             padding_side="left"
         )
-        
-        # --------- PATCH ---------
-        # Disable ANY chat template from tokenizer/model
-        if hasattr(self.tokenizer, "chat_template"):
-            self.tokenizer.chat_template = None
-
-        if hasattr(self.model.config, "chat_template"):
-            self.model.config.chat_template = None
-        # --------------------------
-
+    
         # Ensure padding token is set
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -178,6 +169,15 @@ class LlamaChatInterface:
         
         # Set model to evaluation mode
         self.model.eval()
+        # ---------- CHAT TEMPLATE PATCH (SAFE) ----------
+        # Disable tokenizer chat template
+        if hasattr(self.tokenizer, "chat_template"):
+            self.tokenizer.chat_template = None
+
+        # Disable model config chat template
+        if hasattr(self.model, "config") and hasattr(self.model.config, "chat_template"):
+            self.model.config.chat_template = None
+        # -------------------------------------------------
         
         # Initialize streamer for streaming output
         self.streamer = TextIteratorStreamer(
