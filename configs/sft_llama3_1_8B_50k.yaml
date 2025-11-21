@@ -52,9 +52,9 @@ training:
   assistant_only_loss: true
 
   # Batch Configuration
-  per_device_train_batch_size: 16  # Reduce to 1 if OOM
-  per_device_eval_batch_size: 16
-  gradient_accumulation_steps: 4  # Effective batch size = 2 * 4 = 8
+  per_device_train_batch_size: 32  # Reduce to 1 if OOM
+  per_device_eval_batch_size: 32
+  gradient_accumulation_steps: 2  # Effective batch size = 2 * 4 = 8
 
   # Training Parameters
   num_train_epochs: 3
@@ -73,9 +73,9 @@ training:
   # Logging & Evaluation
   logging_steps: 2  # Log every step (set to 10 for less verbose)
   eval_strategy: "steps"
-  eval_steps: 4  # Evaluate every 100 steps
+  eval_steps: 2  # Evaluate every 100 steps
   save_strategy: "steps"
-  save_steps: 4  # Save checkpoint every 100 steps
+  save_steps: 2  # Save checkpoint every 100 steps
   save_total_limit: 5  # Keep only 2 best checkpoints
 
   # Model Selection
@@ -101,7 +101,7 @@ callbacks:
 
   memory_monitor:
     enabled: true
-    log_every_n_steps: 4
+    log_every_n_steps: 2
 
   save_best_model:
     enabled: true
