@@ -165,7 +165,7 @@ Usage: $0 [OPTIONS]
 
 OPTIONS:
     -m, --model-path PATH       Path to fine-tuned Llama model (auto-detected if not specified)
-    -b, --base-model NAME       Base model name (optional, auto-detected from training_info.json)
+    -b, --base-model NAME       Base model name (required if not in training_info.json/adapter_config.json)
     -p, --port PORT             Port to run Gradio on (default: $PORT)
     -t, --max-tokens NUM        Max tokens to generate (default: $MAX_NEW_TOKENS)
     -s, --share                 Create public Gradio link
@@ -177,14 +177,18 @@ EXAMPLES:
     # Run with auto-detected latest Llama model
     ./scripts/run_inference_llama.sh
 
-    # Run with specific model path
-    ./scripts/run_inference_llama.sh -m SFT-Llama-3.2-1B-LoRA-MultiTurn-1k
+    # Run with specific model path and base model
+    ./scripts/run_inference_llama.sh -m /path/to/adapter -b meta-llama/Llama-3.2-1B-Instruct
 
     # Run on specific port and share publicly
     ./scripts/run_inference_llama.sh -p 8080 -s
 
     # Run without 4-bit quantization (requires more VRAM)
     ./scripts/run_inference_llama.sh --no-4bit
+
+NOTE:
+    If the model directory doesn't contain training_info.json or adapter_config.json,
+    you must specify the base model name using -b/--base-model option.
 EOF
 }
 

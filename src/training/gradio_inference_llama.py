@@ -179,6 +179,14 @@ class LlamaChatInterface:
         
         logger.info("Model loaded successfully!")
     
+    def sanitize_user_input(text: str) -> str:
+        # Hindari input dianggap sebagai percakapan multi-turn
+        prohibited = ["user:", "assistant:", "<|start_header_id|>"]
+        for p in prohibited:
+            text = text.replace(p, "")
+        return text.strip()
+
+
     def format_prompt(
         self,
         message: str,
@@ -261,8 +269,7 @@ class LlamaChatInterface:
         repetition_penalty = repetition_penalty if repetition_penalty is not None else self.repetition_penalty
         
         # Format prompt
-        prompt = self.format_prompt(message, history, system_message)
-        
+        prompt = self.format_prompt(sanitize_user_input(message), history, system_message)
         # Tokenize input
         inputs = self.tokenizer(
             prompt,
@@ -461,14 +468,24 @@ def create_gradio_interface(model_path: str, **kwargs):
         
         # Event handlers
         def user_submit(message, history):
+            # Turn pertama: kosongkan seluruh history
+            if len(history) == 0:
+                return "", [[message, None]]
+            # Turn berikutnya: normal
             return "", history + [[message, None]]
+
         
         def bot_respond(history, system_msg, temp, top_p_val, top_k_val, max_tokens, rep_penalty):
             if not history or history[-1][1] is not None:
                 return history
-            
+
             message = history[-1][0]
-            history_context = history[:-1]
+
+            # If this is the first turn, DO NOT ADD ANY HISTORY
+            if len(history) == 1:
+                history_context = []
+            else:
+                history_context = history[:-1]
             
             response = ""
             for chunk in chat_interface.generate_response(
