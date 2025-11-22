@@ -677,7 +677,7 @@ def main(config_path: str):
         dtype=dtype,
         load_in_4bit=load_in_4bit,
         trust_remote_code=config['model'].get('trust_remote_code', False),
-        use_gradient_checkpointing=False,
+        # use_gradient_checkpointing=False,
     )
 
     print(f"✓ Model loaded: {model_name}")
@@ -695,7 +695,7 @@ def main(config_path: str):
         lora_dropout=lora_config['lora_dropout'],
         target_modules=lora_config['target_modules'],
         bias=lora_config.get('bias', 'none'),
-        use_gradient_checkpointing=False,  # Unsloth's optimized gradient checkpointing
+        use_gradient_checkpointing="unsloth",  # Unsloth's optimized gradient checkpointing
         random_state=config['dataset'].get('seed', 42),
         use_rslora=False,
         loftq_config=None,
