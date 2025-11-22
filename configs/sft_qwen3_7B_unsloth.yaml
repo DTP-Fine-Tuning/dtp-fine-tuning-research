@@ -37,7 +37,7 @@ lora:
 
 # Dataset Configuration
 dataset:
-  name: "DTP2/dtp-multiturn-indonesian-interview-1k"
+  name: "dtp-fine-tuning/dtp-multiturn-interview-10k-combined"
   split: "train"
   test_size: 0.1  # 10% for evaluation
   seed: 42
@@ -45,21 +45,21 @@ dataset:
 
 # Training Arguments
 training:
-  output_dir: "./SFT-Qwen3-7B-Unsloth"
-  run_name: "SFT-Qwen3-7B-Unsloth-MultiTurn"
+  output_dir: "/content/drive/MyDrive/TIM 2 DTP/SFT-Qwen3-7B-Unsloth-final-10k/output"
+  run_name: "SFT-Qwen3-7B-Unsloth-MultiTurn-10k"
 
   # ⭐ IMPORTANT: Enable instruction masking (train only on assistant responses)
   assistant_only_loss: true
 
   # Batch Configuration
-  per_device_train_batch_size: 2  # Reduce to 1 if OOM
-  per_device_eval_batch_size: 1
-  gradient_accumulation_steps: 4  # Effective batch size = 2 * 4 = 8
+  per_device_train_batch_size: 16  # Reduce to 1 if OOM
+  per_device_eval_batch_size: 16
+  gradient_accumulation_steps: 2  # Effective batch size = 2 * 4 = 8
 
   # Training Parameters
   num_train_epochs: 3
   max_steps: -1  # -1 means train for full epochs, or set to specific number for testing
-  learning_rate: 2e-4
+  learning_rate: 0.0002
   warmup_ratio: 0.03
   warmup_steps: 0
 
@@ -73,10 +73,10 @@ training:
   # Logging & Evaluation
   logging_steps: 2  # Log every step (set to 10 for less verbose)
   eval_strategy: "steps"
-  eval_steps: 4  # Evaluate every 100 steps
+  eval_steps: 2  # Evaluate every 100 steps
   save_strategy: "steps"
-  save_steps: 4  # Save checkpoint every 100 steps
-  save_total_limit: 2  # Keep only 2 best checkpoints
+  save_steps: 2  # Save checkpoint every 100 steps
+  save_total_limit: 5  # Keep only 2 best checkpoints
 
   # Model Selection
   load_best_model_at_end: true
@@ -101,7 +101,7 @@ callbacks:
 
   memory_monitor:
     enabled: true
-    log_every_n_steps: 4
+    log_every_n_steps: 2
 
   save_best_model:
     enabled: true
@@ -116,7 +116,7 @@ chat_template:
   #   {% endfor %}
 
   # System message (optional)
-  system_message: "Anda adalah asisten AI yang membantu dan informatif."
+  system_message: "Anda adalah interviewer dari platform talenta digital Diploy. Tugas Anda adalah menggali detail pendidikan, tugas akhir, sertifikasi/pelatihan, dan pengalaman kerja talenta lewat percakapan tanya jawab."
   use_system_message: false  # Set to true to add system message to all conversations
 
 # Evaluation Configuration (NEW in Unsloth script!)
@@ -150,7 +150,7 @@ wandb:
 
 # Paths
 paths:
-  final_model_dir: "./SFT-Qwen3-7B-Unsloth-final"
+  final_model_dir: "/content/drive/MyDrive/TIM 2 DTP/SFT-Qwen3-7B-Unsloth-final-10k"
   checkpoints_dir: "./checkpoints"
   logs_dir: "./logs"
 

@@ -677,6 +677,7 @@ def main(config_path: str):
         dtype=dtype,
         load_in_4bit=load_in_4bit,
         trust_remote_code=config['model'].get('trust_remote_code', False),
+        use_gradient_checkpointing=False,
     )
 
     print(f"✓ Model loaded: {model_name}")
