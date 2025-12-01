@@ -14,6 +14,7 @@ from unsloth.chat_templates import get_chat_template, train_on_responses_only
 
 from datasets import load_dataset, Dataset
 from trl import SFTTrainer, SFTConfig
+from transformers import EarlyStoppingCallback
 import wandb
 
 # prepare dataset
@@ -166,6 +167,14 @@ def main(config_path: str):
 
     # create SFT trainer with train_on_responses_only
     print("Initializing SFT Trainer...")
+    
+    # Setup callbacks
+    callbacks = []
+    early_stopping_patience = train_config.get('early_stopping_patience', None)
+    if early_stopping_patience:
+        callbacks.append(EarlyStoppingCallback(early_stopping_patience=early_stopping_patience))
+        print(f"Early stopping enabled with patience: {early_stopping_patience}")
+    
     trainer = SFTTrainer(
         model = model,
         tokenizer = tokenizer,
@@ -173,6 +182,7 @@ def main(config_path: str):
         train_dataset = train_dataset,
         eval_dataset=  eval_dataset,
         max_seq_length = model.max_seq_len,
+        callbacks = callbacks if callbacks else None,
         dataset_num_proc = train_config.get('dataset_num_proc', 2),
     )
 

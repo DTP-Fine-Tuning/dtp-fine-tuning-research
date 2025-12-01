@@ -1,0 +1,115 @@
+# Unsloth Training Configuration for Qwen3-1.7B
+# Using GPU A100 80GB
+
+# Model Configuration
+model:
+  name: "Qwen/Qwen3-4B"
+  trust_remote_code: true
+  use_cache: false
+
+# Tokenizer Configuration
+tokenizer:
+  padding_side: "left"  
+  trust_remote_code: true
+
+# Quantization Configuration (4-bit for memory efficiency)
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "float16"
+  bnb_4bit_use_double_quant: true
+
+# LoRA Configuration
+lora:
+  r: 16
+  lora_alpha: 32
+  target_modules: 
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  lora_dropout: 0.05  
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+# Dataset Configuration
+dataset:
+  name: "dtp-fine-tuning/dtp-multiturn-interview-10k-combined"
+  split: "train"
+  test_size: 0.1  
+  seed: 42
+  max_length: 2048  
+
+# Training Arguments
+training:
+  output_dir: "./SFT-Qwen3-4B-Unsloth"
+  run_name: "SFT-Qwen3-4B-Unsloth-MultiTurn"
+
+  # Batch Configuration
+  per_device_train_batch_size: 8 
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 4
+
+  # Training Parameters
+  num_train_epochs: 2  
+  learning_rate: 0.00002  
+  warmup_ratio: 0.05  
+
+  # Optimizer (8-bit for memory efficiency)
+  optim: "adamw_8bit"
+  weight_decay: 0.01
+
+  # Scheduler
+  lr_scheduler_type: "cosine"  
+
+  # Logging & Evaluation
+  logging_steps: 10  
+  eval_strategy: "steps"
+  eval_steps: 50  
+  save_strategy: "steps"
+  save_steps: 50  
+  save_total_limit: 3  
+
+  # Model Selection & Early Stopping
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  early_stopping_patience: 3  
+
+  # Misc
+  seed: 42
+  report_to: "wandb"  
+  dataset_num_proc: 2  
+  packing: false  
+
+# Weights & Biases Configuration
+wandb:
+  entity: "DTP2"
+  project: "unsloth_experiment" 
+  tags:
+    - "qwen3"
+    - "qwen3-1.7b"
+    - "unsloth"
+    - "multi-turn"
+    - "indonesian"
+    - "instruction-masking"
+  notes: "Fine-tuning Qwen3-4B with Unsloth optimization and instruction masking"
+
+# Paths
+paths:
+  final_model_dir: "./SFT-Qwen3-4B-Unsloth-final"
+  checkpoints_dir: "./checkpoints"
+  logs_dir: "./logs"
+
+# Push to Hub (optional)
+push_to_hub: false
+hub_model_id: ""  
+
+advanced:
+  use_flash_attention: true
+  use_neftune: true
+  neftune_noise_alpha: 5.0
+  max_grad_norm: 1.0
