@@ -18,7 +18,7 @@ from transformers import EarlyStoppingCallback
 import wandb
 
 # prepare dataset
-def load_and_prepare_dataset(config: Dict) -> Tuple[Dataset, Dataset]:
+def load_and_prepare_dataset(config: Dict, tokenizer=None) -> Tuple[Dataset, Dataset]:
     dataset_name = config['dataset']['name']
     split = config['dataset'].get('split', 'train')
     test_size = config['dataset'].get('test_size', 0.1)
@@ -27,6 +27,25 @@ def load_and_prepare_dataset(config: Dict) -> Tuple[Dataset, Dataset]:
     print(f"Loading dataset: {dataset_name}")
 
     dataset = load_dataset(dataset_name, split=split)
+    
+    # Check dataset format and convert if needed
+    sample = dataset[0]
+    print(f"Dataset columns: {dataset.column_names}")
+    
+    # If dataset has 'messages' column, convert to 'text' using chat template
+    if 'messages' in sample and 'text' not in sample and tokenizer is not None:
+        print("Converting 'messages' format to 'text' using chat template...")
+        def format_messages(example):
+            text = tokenizer.apply_chat_template(
+                example['messages'],
+                tokenize=False,
+                add_generation_prompt=False
+            )
+            return {"text": text}
+        
+        dataset = dataset.map(format_messages, num_proc=config.get('training', {}).get('dataset_num_proc', 2))
+        print("Dataset converted to 'text' format.")
+    
     if test_size > 0:
         dataset_split = dataset.train_test_split(test_size=test_size, seed=seed)
         train_dataset = dataset_split['train']
@@ -76,7 +95,7 @@ def main(config_path: str):
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name,
         max_seq_length = config['dataset']['max_length'],
-        dtype=None,
+        dtype = None,
         load_in_4bit = config.get('quantization', {}).get('load_in_4bit', True),
         trust_remote_code = config.get('model', {}).get('trust_remote_code', False)
     )
@@ -94,7 +113,7 @@ def main(config_path: str):
         loftq_config = None
     )
     print(f"Maximum sequence length: {model.max_seq_length}")
-    print(f"4-Bit quantization: {model.load_in_4bit}")
+    print(f"4-Bit quantization: {getattr(model, 'is_loaded_in_4bit', config.get('quantization', {}).get('load_in_4bit', True))}")
     print(f"LoRA configured with r={lora_config['r']}, alpha={lora_config['lora_alpha']}, dropout={lora_config['lora_dropout']}")
     print(f"target modules for LoRA: {lora_config['target_modules']}")
     print("Model and LoRA configuration complete.")
@@ -116,19 +135,34 @@ def main(config_path: str):
 
     # load dataset
     print("Loading and preparing dataset...")
-    train_dataset, eval_dataset = load_and_prepare_dataset(config)
+    train_dataset, eval_dataset = load_and_prepare_dataset(config, tokenizer)
     
     print(f"Training dataset size: {len(train_dataset)}")
     if eval_dataset:
         print(f"Evaluation dataset size: {len(eval_dataset)}")
     
     #print sample
-    print("Sample formatted text")
-    sample_txt = train_dataset[0]['text']
-    print(sample_txt[:500] + "..." if len(sample_txt) > 500 else sample_txt)
+    print("Sample data from dataset:")
+    sample = train_dataset[0]
+    print(f"Available columns: {list(sample.keys())}")
+    
+    #Handle different dataset formats
+    if 'text' in sample:
+        sample_txt = sample['text']
+        print(f"Text sample: {sample_txt[:500]}..." if len(sample_txt) > 500 else f"Text sample: {sample_txt}")
+    elif 'messages' in sample:
+        print(f"Messages sample: {sample['messages'][:2]}...")
+    elif 'conversations' in sample:
+        print(f"Conversations sample: {sample['conversations'][:2]}...")
+    else:
+        print(f"First sample keys: {list(sample.keys())}")
+        for key in list(sample.keys())[:3]:
+            val = str(sample[key])
+            print(f"  {key}: {val[:200]}..." if len(val) > 200 else f"  {key}: {val}")
+    
     print("Dataset loading and preparation complete.")
 
-    # create SFTConfig
+    #create SFTConfig
     print("Creating SFT Configuration...")
     
     train_config = config['training']
