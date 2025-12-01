@@ -73,7 +73,7 @@ def main(config_path: str):
             config['training']['report_to'] = None
     
     # load model n tokenizer
-    model = FastLanguageModel.from_pretrained(
+    model, tokenizer = FastLanguageModel.from_pretrained(
         model_name,
         max_seq_length = config['dataset']['max_length'],
         dtype=None,
@@ -83,13 +83,13 @@ def main(config_path: str):
 
     # config lora with unsloth
     lora_config = config.get('lora', {})
-    model, tokenizer =  FastLanguageModel.get_peft_model(
+    model = FastLanguageModel.get_peft_model(
         model,
         r = lora_config['r'],
         lora_alpha = lora_config['lora_alpha'],
         lora_dropout = lora_config['lora_dropout'],
         target_modules = lora_config['target_modules'],
-        use_gradient_checkpointing = True,
+        use_gradient_checkpointing = "unsloth",
         use_rslora = False,
         loftq_config = None
     )
