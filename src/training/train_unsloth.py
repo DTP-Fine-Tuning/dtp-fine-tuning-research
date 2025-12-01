@@ -75,7 +75,7 @@ def main(config_path: str):
     # load model n tokenizer
     model = FastLanguageModel.from_pretrained(
         model_name,
-        max_seq_len = config['dataset']['max_length'],
+        max_seq_length = config['dataset']['max_length'],
         dtype=None,
         load_in_4bit = config.get('quantization', {}).get('load_in_4bit', True),
         trust_remote_code = config.get('model', {}).get('trust_remote_code', False)
@@ -93,7 +93,7 @@ def main(config_path: str):
         use_rslora = False,
         loftq_config = None
     )
-    print(f"Maximum sequence length: {model.max_seq_len}")
+    print(f"Maximum sequence length: {model.max_seq_length}")
     print(f"4-Bit quantization: {model.load_in_4bit}")
     print(f"LoRA configured with r={lora_config['r']}, alpha={lora_config['lora_alpha']}, dropout={lora_config['lora_dropout']}")
     print(f"target modules for LoRA: {lora_config['target_modules']}")
@@ -181,7 +181,7 @@ def main(config_path: str):
         args = sft_config,
         train_dataset = train_dataset,
         eval_dataset=  eval_dataset,
-        max_seq_length = model.max_seq_len,
+        max_seq_length = model.max_seq_length,
         callbacks = callbacks if callbacks else None,
         dataset_num_proc = train_config.get('dataset_num_proc', 2),
     )
@@ -199,7 +199,7 @@ def main(config_path: str):
     print("Training Configuration Summary:")
     print(f"Model: {model_name}")
     print(f"Dataset: {config['dataset']['name']}")
-    print(f"Max Sequence Length: {model.max_seq_len}")
+    print(f"Max Sequence Length: {model.max_seq_length}")
     print(f"LoRA Rank: {lora_config['r']}")
     print(f"LoRA Alpha: {lora_config['lora_alpha']}")
     print(f"LoRA Dropout: {lora_config['lora_dropout']}")
