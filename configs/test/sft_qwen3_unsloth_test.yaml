@@ -7,6 +7,9 @@ model:
   trust_remote_code: true
   use_cache: false
 
+chat_template:
+  name: "qwen3"
+
 # Tokenizer Configuration
 tokenizer:
   padding_side: "left"  
