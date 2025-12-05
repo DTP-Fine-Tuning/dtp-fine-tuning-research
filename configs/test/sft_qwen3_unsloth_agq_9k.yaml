@@ -40,7 +40,7 @@ lora:
 
 # Dataset Configuration
 dataset:
-  name: "ddtp-fine-tuning/dtp-singleturn-AGQ-9k"
+  name: "dtp-fine-tuning/dtp-singleturn-AGQ-9k"
   split: "train"
   test_size: 0.1  
   seed: 42
