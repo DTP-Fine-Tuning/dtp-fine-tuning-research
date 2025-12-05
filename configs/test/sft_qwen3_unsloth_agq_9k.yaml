@@ -96,7 +96,7 @@ wandb:
     - "qwen3"
     - "qwen3-1.7b"
     - "unsloth"
-    - "multi-turn"
+    - "single-turn"
     - "indonesian"
     - "instruction-masking"
   notes: "Fine-tuning Biawak-8b with Unsloth optimization and instruction masking for AGQ 9k Dataset"
