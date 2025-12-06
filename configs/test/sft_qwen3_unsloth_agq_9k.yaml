@@ -93,8 +93,7 @@ wandb:
   entity: "DTP2"
   project: "unsloth_experiment" 
   tags:
-    - "qwen3"
-    - "qwen3-1.7b"
+    - "biawak 8b"
     - "unsloth"
     - "single-turn"
     - "indonesian"
