@@ -254,9 +254,11 @@ def load_and_prepare_dataset(config: Dict, tokenizer) -> Tuple[Dataset, Optional
     """
     Load and prepare dataset for single-turn fine-tuning.
     Supports:
-    - HuggingFace Hub datasets
+    - HuggingFace Hub datasets (including those with mixed content types)
     - Local JSONL files (including those with mixed content types)
     """
+    from huggingface_hub import hf_hub_download, HfFileSystem
+    
     dataset_config = config['dataset']
     dataset_name = dataset_config['name']
     split = dataset_config.get('split', 'train')
@@ -288,7 +290,58 @@ def load_and_prepare_dataset(config: Dict, tokenizer) -> Tuple[Dataset, Optional
                 dataset = load_jsonl_with_mixed_types(dataset_name)
     else:
         # Load from HuggingFace Hub
-        dataset = load_dataset(dataset_name, split=split)
+        # First, try standard loader
+        try:
+            dataset = load_dataset(dataset_name, split=split)
+        except Exception as e:
+            # Check if it's the mixed content type error
+            # Need to check the full exception chain since error may be wrapped
+            full_error = str(e)
+            cause = e.__cause__
+            while cause:
+                full_error += " " + str(cause)
+                cause = cause.__cause__
+            
+            is_mixed_type_error = (
+                "ArrowInvalid" in full_error or 
+                "changed from string to array" in full_error or
+                "DatasetGenerationError" in str(type(e).__name__)
+            )
+            
+            if is_mixed_type_error:
+                print(f"Standard HF loader failed (likely due to mixed content types).")
+                print("Downloading dataset file and using custom loader...")
+                
+                # Find and download the JSONL file from HuggingFace Hub
+                try:
+                    fs = HfFileSystem()
+                    # List files in the dataset repo
+                    files = fs.ls(f"datasets/{dataset_name}", detail=False)
+                    jsonl_files = [f for f in files if f.endswith('.jsonl')]
+                    
+                    if jsonl_files:
+                        # Get the filename from the path
+                        jsonl_filename = jsonl_files[0].split('/')[-1]
+                        print(f"Found JSONL file: {jsonl_filename}")
+                        
+                        # Download the file
+                        local_path = hf_hub_download(
+                            repo_id=dataset_name,
+                            filename=jsonl_filename,
+                            repo_type="dataset"
+                        )
+                        print(f"Downloaded to: {local_path}")
+                        
+                        # Use custom loader
+                        dataset = load_jsonl_with_mixed_types(local_path)
+                    else:
+                        raise ValueError(f"No JSONL files found in dataset {dataset_name}")
+                except Exception as download_error:
+                    print(f"Failed to download from HF Hub: {download_error}")
+                    raise e
+            else:
+                # Re-raise if it's a different error
+                raise e
     
     print(f"Loaded {len(dataset)} examples")
     print(f"Dataset columns: {dataset.column_names}")
