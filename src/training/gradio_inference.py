@@ -268,7 +268,7 @@ class Qwen3ChatInterface:
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=2048
+            max_length=8192
         )
         
         if self.device == "cuda":
@@ -435,7 +435,7 @@ def create_gradio_interface(model_path: str, **kwargs):
                 max_new_tokens = gr.Slider(
                     label="Max New Tokens",
                     minimum=1,
-                    maximum=2048,
+                    maximum=8192,
                     value=512,
                     step=1,
                     info="Maximum number of tokens to generate"
