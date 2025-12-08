@@ -1,11 +1,7 @@
 #!/bin/bash
-
-################################################################################
-# Setup Script for Qwen3 Fine-tuning Pipeline
+# Setup Script for Fine-tuning Pipeline
 # This script verifies the environment and prepares scripts for execution
 # Must be run from project root: ~/dtp-fine-tuning-research/
-################################################################################
-
 set -e
 
 # Color codes
@@ -40,9 +36,8 @@ print_step() {
     echo -e "${BLUE}➜${NC} $1"
 }
 
-################################################################################
+
 # Load .env file if it exists
-################################################################################
 
 load_env_file() {
     if [ -f ".env" ]; then
@@ -60,10 +55,8 @@ load_env_file() {
     fi
 }
 
-################################################################################
-# Verify Project Root
-################################################################################
 
+# Verify Project Root
 verify_project_root() {
     # Check if we're in the project root by looking for key directories
     if [ ! -d "scripts" ] || [ ! -d "src" ] || [ ! -d "configs" ]; then
@@ -83,21 +76,17 @@ verify_project_root() {
     print_info "Running from project root: $(pwd)"
 }
 
-################################################################################
-# Main Setup
-################################################################################
 
-print_header "Qwen3 Fine-tuning Pipeline Setup"
+# Main Setup
+print_header "Fine-tuning Pipeline Setup"
 
 verify_project_root
 
 # Load .env file early in the process
 load_env_file
 
-################################################################################
-# 1. Verify Directory Structure
-################################################################################
 
+# 1. Verify Directory Structure
 print_step "Step 1: Verifying project directory structure..."
 
 # Required directories that should already exist
@@ -142,10 +131,8 @@ for dir in "${OPTIONAL_DIRS[@]}"; do
     fi
 done
 
-################################################################################
-# 2. Make Scripts Executable
-################################################################################
 
+# 2. Make Scripts Executable
 print_step "Step 2: Making scripts executable..."
 
 scripts=(
@@ -156,6 +143,7 @@ scripts=(
     "scripts/run_evaluation_gemini.sh"
     "scripts/setup.sh"
     "scripts/setup_gemini.sh"
+    "scripts/run_training_unsloth.sh"
 )
 
 for script in "${scripts[@]}"; do
@@ -167,11 +155,9 @@ for script in "${scripts[@]}"; do
     fi
 done
 
-################################################################################
-# 3. Check Python Installation
-################################################################################
 
-print_step "Step 3: Checking Python installation..."
+# 3. Check Python Installation
+print_step "Step 3: Checking Python installation.."
 
 if ! command -v python &> /dev/null; then
     print_error "Python not found. Please install Python 3.8 or higher."
@@ -188,10 +174,7 @@ if ! python -c "import sys; exit(0 if sys.version_info >= tuple(map(int, '$REQUI
     exit 1
 fi
 
-################################################################################
 # 4. Check GPU/CUDA
-################################################################################
-
 print_step "Step 4: Checking GPU/CUDA availability..."
 
 if command -v nvidia-smi &> /dev/null; then
@@ -214,10 +197,7 @@ else
     print_warning "GPU acceleration may not be available"
 fi
 
-################################################################################
 # 5. Check Python Dependencies
-################################################################################
-
 print_step "Step 5: Checking Python dependencies..."
 
 # Package names for installation and import
@@ -235,6 +215,7 @@ REQUIRED_PACKAGES_INSTALL=(
     "pyyaml"
     "google-generativeai"
     "tenacity"
+    "unsloth"
 )
 
 REQUIRED_PACKAGES_IMPORT=(
@@ -251,6 +232,7 @@ REQUIRED_PACKAGES_IMPORT=(
     "yaml"
     "google.generativeai"
     "tenacity"
+    "unsloth"
 )
 
 MISSING_PACKAGES=()
@@ -289,10 +271,7 @@ if [ ${#MISSING_PACKAGES[@]} -ne 0 ]; then
     fi
 fi
 
-################################################################################
 # 6. Check Environment Variables
-################################################################################
-
 print_step "Step 6: Checking environment variables..."
 
 # Check W&B
@@ -323,10 +302,8 @@ else
     print_info "You can add it to .env file or set with: export GEMINI_API_KEY='your-key'"
 fi
 
-################################################################################
-# 7. Verify Configuration Files
-################################################################################
 
+# 7. Verify Configuration Files
 print_step "Step 7: Verifying configuration files..."
 
 CONFIG_FILES=(
@@ -350,10 +327,8 @@ for config in "${CONFIG_FILES[@]}"; do
     fi
 done
 
-################################################################################
-# 8. Verify Python Scripts
-################################################################################
 
+# 8. Verify Python Scripts
 print_step "Step 8: Verifying Python scripts..."
 
 PYTHON_SCRIPTS=(
@@ -378,16 +353,14 @@ for script in "${PYTHON_SCRIPTS[@]}"; do
     fi
 done
 
-################################################################################
-# 9. Detect Existing Models
-################################################################################
 
+# 9. Detect Existing Models
 print_step "Step 9: Detecting existing models..."
 
 MODEL_COUNT=0
 
 # Check src/training/ for models
-if compgen -G "src/training/SFT-*" > /dev/null; then
+if compgen -G "src/training/sft-*" > /dev/null; then
     print_info "Models found in src/training/:"
     for model in src/training/SFT-*/; do
         if [ -d "$model" ]; then
@@ -398,7 +371,7 @@ if compgen -G "src/training/SFT-*" > /dev/null; then
 fi
 
 # Check src/utils/ for models
-if compgen -G "src/utils/SFT-*" > /dev/null; then
+if compgen -G "src/utils/sft-*" > /dev/null; then
     print_info "Models found in src/utils/:"
     for model in src/utils/SFT-*/; do
         if [ -d "$model" ]; then
@@ -413,10 +386,8 @@ if [ $MODEL_COUNT -eq 0 ]; then
     print_info "Run training to create a model: ./scripts/run_training.sh"
 fi
 
-################################################################################
-# 10. Create Environment File Template
-################################################################################
 
+# 10. Create Environment File Template
 print_step "Step 10: Checking environment template..."
 
 ENV_FILE=".env.template"
@@ -450,10 +421,8 @@ EOF
     print_info "Created environment template: $ENV_FILE"
 fi
 
-################################################################################
-# 11. Summary
-################################################################################
 
+# 11. Summary
 print_header "Setup Complete!"
 
 echo "Project structure verified"
