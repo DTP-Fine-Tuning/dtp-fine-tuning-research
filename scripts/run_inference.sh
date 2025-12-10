@@ -23,6 +23,7 @@ PORT=7860
 MAX_NEW_TOKENS=512
 SHARE=false
 NO_4BIT=false
+DEBUG=false
 
 ################################################################################
 # Helper Functions
@@ -236,6 +237,10 @@ while [[ $# -gt 0 ]]; do
             NO_4BIT=true
             shift
             ;;
+        -d|--debug)
+            DEBUG=true
+            shift
+            ;;
         --script)
             INFERENCE_SCRIPT="$2"
             shift 2
@@ -329,6 +334,10 @@ fi
 
 if [ "$NO_4BIT" = true ]; then
     CMD="$CMD --no-4bit"
+fi
+
+if [ "$DEBUG" = true ]; then
+    CMD="$CMD --debug"
 fi
 
 # Display model information

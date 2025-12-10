@@ -203,23 +203,42 @@ class Qwen3ChatInterface:
                 "You are a helpful assistant."
             )
         
-        # Build conversation with Qwen3 format
-        prompt = ""
+        # Build messages list for chat template
+        messages = []
         
         # Add system message
-        if self.chat_template_config.get("use_system_message", True):
-            prompt += f"<|im_start|>system\n{system_message}<|im_end|>\n"
+        if self.chat_template_config.get("use_system_message", True) and system_message:
+            messages.append({"role": "system", "content": system_message})
         
         # Add conversation history
         for user_msg, assistant_msg in history:
             if user_msg:
-                prompt += f"<|im_start|>user\n{user_msg}<|im_end|>\n"
+                messages.append({"role": "user", "content": user_msg})
             if assistant_msg:
-                prompt += f"<|im_start|>assistant\n{assistant_msg}<|im_end|>\n"
+                messages.append({"role": "assistant", "content": assistant_msg})
         
         # Add current message
-        prompt += f"<|im_start|>user\n{message}<|im_end|>\n"
-        prompt += "<|im_start|>assistant\n"
+        messages.append({"role": "user", "content": message})
+        
+        # Use tokenizer's apply_chat_template for proper formatting
+        # This ensures the prompt matches the training format exactly
+        try:
+            prompt = self.tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=False  # Disable thinking for direct responses
+            )
+        except TypeError:
+            # Fallback if enable_thinking is not supported
+            prompt = self.tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True
+            )
+        
+        # Debug: log the generated prompt (truncated for readability)
+        logger.debug(f"Generated prompt (last 500 chars): ...{prompt[-500:]}")
         
         return prompt
     
@@ -275,17 +294,33 @@ class Qwen3ChatInterface:
             inputs = {k: v.cuda() for k, v in inputs.items()}
         
         # Generate response
+        # Get all possible stop token IDs for Qwen3/ChatML format
+        stop_token_ids = [self.tokenizer.eos_token_id]
+        
+        # Add <|im_end|> token if it exists (important for Qwen3)
+        im_end_token_id = self.tokenizer.convert_tokens_to_ids("<|im_end|>")
+        if im_end_token_id is not None and im_end_token_id != self.tokenizer.unk_token_id:
+            stop_token_ids.append(im_end_token_id)
+        
+        # Add <|endoftext|> token if it exists
+        endoftext_token_id = self.tokenizer.convert_tokens_to_ids("<|endoftext|>")
+        if endoftext_token_id is not None and endoftext_token_id != self.tokenizer.unk_token_id:
+            stop_token_ids.append(endoftext_token_id)
+        
+        # Remove duplicates and None values
+        stop_token_ids = list(set([t for t in stop_token_ids if t is not None]))
+        
         generation_kwargs = {
             "inputs": inputs["input_ids"],
             "attention_mask": inputs["attention_mask"],
             "max_new_tokens": max_new_tokens,
-            "temperature": temperature,
+            "temperature": temperature if temperature > 0 else 1.0,
             "top_p": top_p,
             "top_k": top_k,
             "repetition_penalty": repetition_penalty,
             "do_sample": temperature > 0,
             "pad_token_id": self.tokenizer.pad_token_id,
-            "eos_token_id": self.tokenizer.eos_token_id,
+            "eos_token_id": stop_token_ids,
         }
         
         if stream:
@@ -299,7 +334,9 @@ class Qwen3ChatInterface:
             generated_text = ""
             for new_text in self.streamer:
                 generated_text += new_text
-                yield generated_text
+                # Clean up any remaining special tokens from streaming
+                cleaned_text = self._clean_response(generated_text)
+                yield cleaned_text
             
             thread.join()
         else:
@@ -312,7 +349,27 @@ class Qwen3ChatInterface:
                 skip_special_tokens=True
             )
             
+            # Clean up any remaining special tokens
+            generated_text = self._clean_response(generated_text)
+            
             yield generated_text
+    
+    def _clean_response(self, text: str) -> str:
+        """Clean up response text by removing special tokens and artifacts"""
+        import re
+        
+        # Remove any remaining ChatML-style special tokens
+        text = re.sub(r'<\|im_start\|>.*?\n', '', text)
+        text = re.sub(r'<\|im_end\|>', '', text)
+        text = re.sub(r'<\|endoftext\|>', '', text)
+        
+        # Remove any thinking tags if they appear in output
+        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+        
+        # Clean up extra whitespace
+        text = text.strip()
+        
+        return text
     
     def clear_conversation(self):
         """Clear the conversation history"""
@@ -577,8 +634,18 @@ def main():
         default=512,
         help="Maximum number of tokens to generate"
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging to see generated prompts"
+    )
     
     args = parser.parse_args()
+    
+    # Set debug logging if requested
+    if args.debug:
+        logging.getLogger(__name__).setLevel(logging.DEBUG)
+        logger.debug("Debug mode enabled - prompts will be logged")
     
     # Check if model path exists
     if not Path(args.model_path).exists():
