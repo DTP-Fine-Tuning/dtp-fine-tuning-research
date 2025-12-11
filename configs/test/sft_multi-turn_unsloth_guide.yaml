@@ -100,15 +100,14 @@ training:
 # Weights & Biases Configuration
 wandb:
   entity: "DTP2"
-  project: "unsloth_experiment" 
+  project: "chatbot_multiturn_experiment" 
   tags:
-    - "qwen3"
-    - "qwen3-1.7b"
+    - "bakti-8b"
     - "unsloth"
     - "multi-turn"
     - "indonesian"
     - "instruction-masking"
-  notes: "Fine-tuning Qwen3-4B with Unsloth optimization and instruction masking"
+  notes: "Fine-tuning Bakti-8B with Unsloth optimization and instruction masking"
 
 # Paths
 paths:
