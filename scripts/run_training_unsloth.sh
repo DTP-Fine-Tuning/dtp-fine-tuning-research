@@ -15,7 +15,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Default values - Unsloth specific
-CONFIG_FILE="configs/sft_qwen3_unsloth_test.yaml"
+CONFIG_FILE="configs/test/sft_qwen3_unsloth_test.yaml"
 TRAINING_SCRIPT="src/training/train_unsloth.py"
 LOG_DIR="logs"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
@@ -294,7 +294,15 @@ try:
     if config.get('quantization', {}).get('load_in_4bit', False):
         print(f"4-bit quantization: Enabled (memory efficient)")
     
-    print(f"Final model dir: {config.get('paths', {}).get('final_model_dir', 'N/A')}")
+    # Advanced settings
+    advanced = config.get('advanced', {})
+    print(f"\n[Advanced Settings]")
+    print(f"  Max grad norm: {advanced.get('max_grad_norm', 1.0)}")
+    print(f"  NEFTune: {'Enabled (alpha={})'.format(advanced.get('neftune_noise_alpha', 5.0)) if advanced.get('use_neftune', False) else 'Disabled'}")
+    print(f"  Packing: {'Enabled' if config['training'].get('packing', False) else 'Disabled'}")
+    print(f"  Flash Attention: {'Enabled' if advanced.get('use_flash_attention', True) else 'Disabled'} (via Unsloth)")
+    
+    print(f"\nFinal model dir: {config.get('paths', {}).get('final_model_dir', 'N/A')}")
     
 except Exception as e:
     print(f"Error reading config: {e}")
