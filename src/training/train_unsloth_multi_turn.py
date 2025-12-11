@@ -43,6 +43,21 @@ def load_and_prepare_dataset(config: Dict, tokenizer=None) -> Tuple[Dataset, Dat
         
         dataset = dataset.map(format_messages, num_proc=config.get('training', {}).get('dataset_num_proc', 2))
         print("Dataset converted to 'text' format.")
+        
+        # Remove the original 'messages' column to avoid batching issues
+        # The nested list structure can't be batched by the trainer
+        if 'messages' in dataset.column_names:
+            dataset = dataset.remove_columns(['messages'])
+            print("Removed 'messages' column to prevent batching errors.")
+    
+    # Keep only 'text' column for training (remove any other nested columns)
+    columns_to_keep = ['text']
+    columns_to_remove = [col for col in dataset.column_names if col not in columns_to_keep]
+    if columns_to_remove:
+        dataset = dataset.remove_columns(columns_to_remove)
+        print(f"Removed extra columns: {columns_to_remove}")
+    
+    print(f"Final dataset columns: {dataset.column_names}")
     
     if test_size > 0:
         dataset_split = dataset.train_test_split(test_size=test_size, seed=seed)
