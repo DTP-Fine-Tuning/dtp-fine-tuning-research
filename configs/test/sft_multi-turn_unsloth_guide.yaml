@@ -49,7 +49,7 @@ lora:
 
 # Dataset Configuration
 dataset:
-  name: "dtp-fine-tuning/dtp-multiturn-interview-valid-12k"
+  name: "dtp-fine-tuning/dtp-multiturn-interview-valid-15k"
   split: "train"
   test_size: 0.1  
   seed: 42
@@ -57,8 +57,8 @@ dataset:
 
 # Training Arguments
 training:
-  output_dir: "./SFT-Qwen3-4B-Unsloth"
-  run_name: "SFT-Qwen3-4B-Unsloth-MultiTurn"
+  output_dir: "./SFT-Bakti-8B-Base-MultiTurn-Chatbot"
+  run_name: "SFT-Bakti-8B-Base-MultiTurn-Chatbot"
 
   # Batch Configuration
   per_device_train_batch_size: 8 
@@ -75,10 +75,10 @@ training:
   weight_decay: 0.01
 
   # Scheduler
-  lr_scheduler_type: "cosine"  
+  lr_scheduler_type: "linear"  
 
   # Logging & Evaluation
-  logging_steps: 10  
+  logging_steps: 25  
   eval_strategy: "steps"
   eval_steps: 50  
   save_strategy: "steps"
@@ -112,7 +112,7 @@ wandb:
 
 # Paths
 paths:
-  final_model_dir: "./SFT-Qwen3-4B-Unsloth-final"
+  final_model_dir: "./SFT-Bakti-8B-Base-MultiTurn-Chatbot-final"
   checkpoints_dir: "./checkpoints"
   logs_dir: "./logs"
 
