@@ -134,7 +134,7 @@ def prepare_dataset(config: dict, tokenizer):
     """Load and prepare dataset for training."""
     dataset_name = config['dataset']['name']
     split = config['dataset'].get('split', 'train')
-    test_size = config['dataset'].get('test_size', 0.1)
+    test_size = config['dataset'].get('test_size', 0.2)
     seed = config['dataset'].get('seed', 42)
     
     print(f"Loading dataset: {dataset_name}")
@@ -172,7 +172,8 @@ def prepare_dataset(config: dict, tokenizer):
         text = tokenizer.apply_chat_template(
             messages,
             tokenize=False,
-            add_generation_prompt=False
+            add_generation_prompt=True,
+            enable_thinking=False
         )
         return {"text": text}
     
