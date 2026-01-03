@@ -1,10 +1,8 @@
 #!/bin/bash
-# Setup Script for Fine-tuning Pipeline
-# This script verifies the environment and prepares scripts for execution
-# Must be run from project root: ~/dtp-fine-tuning-research/
-set -e
+# setup script for first clone project
+# author: Tim 2 DTP
 
-# Color codes
+set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -20,34 +18,29 @@ print_header() {
 }
 
 print_info() {
-    echo -e "${GREEN}✓${NC} $1"
+    echo -e "${GREEN}[DONE]${NC} $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
+    echo -e "${YELLOW}[WARN]${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}✗${NC} $1"
+    echo -e "${RED}[FAIL]${NC} $1"
 }
 
 print_step() {
     echo
-    echo -e "${BLUE}➜${NC} $1"
+    echo -e "${BLUE}[STEP]${NC} $1"
 }
-
-
-# Load .env file if it exists
 
 load_env_file() {
     if [ -f ".env" ]; then
         print_info "Found .env file, loading environment variables..."
-        
-        # Export variables from .env file
-        set -a  # automatically export all variables
+        set -a  
         source .env
-        set +a  # stop automatically exporting
-        
+        set +a 
+    
         print_info "Environment variables loaded from .env"
     else
         print_warning ".env file not found"
@@ -55,10 +48,7 @@ load_env_file() {
     fi
 }
 
-
-# Verify Project Root
 verify_project_root() {
-    # Check if we're in the project root by looking for key directories
     if [ ! -d "scripts" ] || [ ! -d "src" ] || [ ! -d "configs" ]; then
         print_error "This script must be run from the project root directory"
         print_error "Expected directory structure:"
@@ -76,20 +66,11 @@ verify_project_root() {
     print_info "Running from project root: $(pwd)"
 }
 
-
-# Main Setup
 print_header "Fine-tuning Pipeline Setup"
-
 verify_project_root
-
-# Load .env file early in the process
 load_env_file
 
-
-# 1. Verify Directory Structure
 print_step "Step 1: Verifying project directory structure..."
-
-# Required directories that should already exist
 REQUIRED_DIRS=(
     "configs"
     "scripts"
@@ -97,15 +78,12 @@ REQUIRED_DIRS=(
     "src/training"
     "src/utils"
 )
-
-# Optional directories that we'll create if missing
 OPTIONAL_DIRS=(
     "logs"
     "evaluation_results"
     "checkpoints"
 )
 
-# Check required directories
 MISSING_REQUIRED=false
 for dir in "${REQUIRED_DIRS[@]}"; do
     if [ -d "$dir" ]; then
@@ -121,7 +99,6 @@ if [ "$MISSING_REQUIRED" = true ]; then
     exit 1
 fi
 
-# Check and create optional directories
 for dir in "${OPTIONAL_DIRS[@]}"; do
     if [ -d "$dir" ]; then
         print_info "Directory exists: $dir/"
@@ -132,18 +109,13 @@ for dir in "${OPTIONAL_DIRS[@]}"; do
 done
 
 
-# 2. Make Scripts Executable
 print_step "Step 2: Making scripts executable..."
-
 scripts=(
     "scripts/run_pipeline.sh"
-    "scripts/run_training.sh"
+    "scripts/run_training_unsloth.sh"
     "scripts/run_inference.sh"
     "scripts/run_evaluation.sh"
-    "scripts/run_evaluation_gemini.sh"
     "scripts/setup.sh"
-    "scripts/setup_gemini.sh"
-    "scripts/run_training_unsloth.sh"
 )
 
 for script in "${scripts[@]}"; do
@@ -156,9 +128,7 @@ for script in "${scripts[@]}"; do
 done
 
 
-# 3. Check Python Installation
 print_step "Step 3: Checking Python installation.."
-
 if ! command -v python &> /dev/null; then
     print_error "Python not found. Please install Python 3.8 or higher."
     exit 1
@@ -167,23 +137,19 @@ fi
 PYTHON_VERSION=$(python --version 2>&1 | cut -d' ' -f2)
 print_info "Python version: $PYTHON_VERSION"
 
-# Check Python version
 REQUIRED_VERSION="3.8.0"
 if ! python -c "import sys; exit(0 if sys.version_info >= tuple(map(int, '$REQUIRED_VERSION'.split('.'))) else 1)" 2>/dev/null; then
     print_error "Python 3.8 or higher is required"
     exit 1
 fi
 
-# 4. Check GPU/CUDA
 print_step "Step 4: Checking GPU/CUDA availability..."
-
 if command -v nvidia-smi &> /dev/null; then
     print_info "NVIDIA GPU detected"
     nvidia-smi --query-gpu=name,memory.total --format=csv,noheader | while read line; do
         print_info "  $line"
     done
     
-    # Check CUDA availability in Python
     if python -c "import torch; print(torch.cuda.is_available())" 2>/dev/null | grep -q "True"; then
         print_info "CUDA is available in PyTorch"
         CUDA_VERSION=$(python -c "import torch; print(torch.version.cuda)" 2>/dev/null)
@@ -197,10 +163,7 @@ else
     print_warning "GPU acceleration may not be available"
 fi
 
-# 5. Check Python Dependencies
 print_step "Step 5: Checking Python dependencies..."
-
-# Package names for installation and import
 REQUIRED_PACKAGES_INSTALL=(
     "torch"
     "transformers"
@@ -236,7 +199,6 @@ REQUIRED_PACKAGES_IMPORT=(
 )
 
 MISSING_PACKAGES=()
-
 for i in "${!REQUIRED_PACKAGES_INSTALL[@]}"; do
     package_install="${REQUIRED_PACKAGES_INSTALL[$i]}"
     package_import="${REQUIRED_PACKAGES_IMPORT[$i]}"
@@ -261,7 +223,7 @@ if [ ${#MISSING_PACKAGES[@]} -ne 0 ]; then
         if [ -f "requirements.txt" ]; then
             pip install -r requirements.txt
         else
-            pip install torch transformers peft trl datasets accelerate bitsandbytes gradio deepeval wandb pyyaml pandas google-generativeai tenacity
+            pip install torch transformers peft trl datasets accelerate bitsandbytes gradio deepeval wandb pyyaml pandas google-generativeai tenacity unsloth
         fi
         
         print_info "Packages installed successfully"
@@ -271,10 +233,7 @@ if [ ${#MISSING_PACKAGES[@]} -ne 0 ]; then
     fi
 fi
 
-# 6. Check Environment Variables
 print_step "Step 6: Checking environment variables..."
-
-# Check W&B
 if [ -n "$WANDB_API_KEY" ]; then
     print_info "WANDB_API_KEY is set"
 else
@@ -283,44 +242,21 @@ else
     print_info "Or run training with: ./scripts/run_training.sh --no-wandb"
 fi
 
-# Check OpenAI (optional)
-if [ -n "$OPENAI_API_KEY" ]; then
-    print_info "OPENAI_API_KEY is set"
-else
-    print_warning "OPENAI_API_KEY is not set (optional)"
-    print_info "Only required if using DeepEval with OpenAI evaluation metrics"
-    print_info "You can add it to .env file or set with: export OPENAI_API_KEY='your-key'"
-fi
-
-# Check Gemini
-if [ -n "$GEMINI_API_KEY" ] || [ -n "$GOOGLE_API_KEY" ]; then
-    print_info "GEMINI_API_KEY or GOOGLE_API_KEY is set"
-else
-    print_warning "GEMINI_API_KEY / GOOGLE_API_KEY is not set"
-    print_info "Required for DeepEval (Gemini) evaluation metrics"
-    print_info "Get one at: https://makersuite.google.com/app/apikey"
-    print_info "You can add it to .env file or set with: export GEMINI_API_KEY='your-key'"
-fi
-
-
-# 7. Verify Configuration Files
 print_step "Step 7: Verifying configuration files..."
-
 CONFIG_FILES=(
-    "configs/sft_qwen3_1_7B_improved.yaml"
-    "configs/sft_qwen3_1_7B.yaml"
-    "configs/sft_llama3.2_1B.yaml"
+    "configs/sft_agq_9k.yaml"
+    "configs/sft_diploy_8B.yaml"
+    "configs/research/sft_multi-turn_unsloth_guide.yaml"
+    "configs/research/sft_qwen3_single_turn.yaml"
 )
 
 for config in "${CONFIG_FILES[@]}"; do
     if [ -f "$config" ]; then
         print_info "Configuration file found: $config"
-        
-        # Validate YAML
         if python -c "import yaml; yaml.safe_load(open('$config'))" 2>/dev/null; then
-            print_info "  ✓ Valid YAML syntax"
+            print_info "  [DONE] Valid YAML syntax"
         else
-            print_error "  ✗ YAML syntax errors"
+            print_error "  [FAIL] YAML syntax errors"
         fi
     else
         print_warning "Configuration file not found: $config"
@@ -328,25 +264,21 @@ for config in "${CONFIG_FILES[@]}"; do
 done
 
 
-# 8. Verify Python Scripts
 print_step "Step 8: Verifying Python scripts..."
-
 PYTHON_SCRIPTS=(
-    "src/training/training_script_qwen3_improved.py"
-    "src/training/gradio_inference.py"
-    "src/training/deepeval_evaluation.py"
-    "src/training/deepeval_evaluation_gemini.py"
+    "src/training/train_unsloth_multi-turn.py"
+    "src/training/train_unsloth_single-turn.py"
+    "src/inference/gradio_inference.py"
+    "src/eval/deepeval_my_model.py"
 )
 
 for script in "${PYTHON_SCRIPTS[@]}"; do
     if [ -f "$script" ]; then
         print_info "Found: $script"
-        
-        # Check for syntax errors
         if python -m py_compile "$script" 2>/dev/null; then
-            print_info "  ✓ No syntax errors"
+            print_info "  [DONE] No syntax errors"
         else
-            print_error "  ✗ Syntax errors found"
+            print_error "  [FAIL] Syntax errors found"
         fi
     else
         print_warning "Script not found: $script"
@@ -354,12 +286,8 @@ for script in "${PYTHON_SCRIPTS[@]}"; do
 done
 
 
-# 9. Detect Existing Models
 print_step "Step 9: Detecting existing models..."
-
 MODEL_COUNT=0
-
-# Check src/training/ for models
 if compgen -G "src/training/sft-*" > /dev/null; then
     print_info "Models found in src/training/:"
     for model in src/training/SFT-*/; do
@@ -370,7 +298,6 @@ if compgen -G "src/training/sft-*" > /dev/null; then
     done
 fi
 
-# Check src/utils/ for models
 if compgen -G "src/utils/sft-*" > /dev/null; then
     print_info "Models found in src/utils/:"
     for model in src/utils/SFT-*/; do
@@ -387,7 +314,6 @@ if [ $MODEL_COUNT -eq 0 ]; then
 fi
 
 
-# 10. Create Environment File Template
 print_step "Step 10: Checking environment template..."
 
 ENV_FILE=".env.template"
@@ -396,33 +322,21 @@ if [ -f "$ENV_FILE" ]; then
     print_info "Environment template already exists: $ENV_FILE"
 else
     cat > "$ENV_FILE" << 'EOF'
-# Environment Variables for Qwen3 Fine-tuning Pipeline
-# Copy this to .env and fill in your values
-# The setup.sh script will automatically load this file
+# env var must be set before running any scripts
+# cpy this file to .env and fill in the values
 
-# Weights & Biases (Required for tracking)
-WANDB_API_KEY=your-wandb-api-key
-WANDB_ENTITY=your-wandb-entity
-WANDB_PROJECT=qwen3-fine-tuning
-
-# OpenAI (Optional - only for DeepEval with OpenAI)
-# OPENAI_API_KEY=your-openai-api-key
-
-# Gemini (Required for DeepEval with Gemini)
-GEMINI_API_KEY=your-gemini-api-key
-
-# CUDA Configuration (optional)
-# CUDA_VISIBLE_DEVICES=0
-
-# Hugging Face (optional, for private models/datasets)
-# HF_TOKEN=your-huggingface-token
+WANDB_API_KEY="your-wandb-api-key"
+WANDB_ENTITY="your-wandb-entity"
+WANDB_PROJECT="qwen3-fine-tuning"
+GEMINI_API_KEY="your-gemini-api-key"
+HF_TOKEN="your-huggingface-token"
+PYTHONPATH="${PYTHONPATH}:$(pwd)"
+OPENROUTER_API_KEY="your-openrouter-api-key"
 EOF
-
     print_info "Created environment template: $ENV_FILE"
 fi
 
 
-# 11. Summary
 print_header "Setup Complete!"
 
 echo "Project structure verified"
@@ -445,7 +359,7 @@ echo "  1. If you haven't already, configure your .env file:"
 echo "     nano .env"
 echo
 echo "  2. Review and modify configuration:"
-echo "     nano configs/sft_qwen3_1_7B_improved.yaml"
+echo "     nano configs/sft_diploy_8B.yaml"
 echo
 echo "  3. Start the pipeline:"
 echo "     ./scripts/run_pipeline.sh"
@@ -460,7 +374,6 @@ echo
 print_info "For detailed usage, run any script with --help"
 echo
 
-# Check if running interactively
 if [ -t 0 ]; then
     read -p "Would you like to open the interactive menu now? [y/N]: " -n 1 -r
     echo

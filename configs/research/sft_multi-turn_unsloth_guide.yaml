@@ -1,0 +1,126 @@
+# Unsloth Training Configuration for Bakti-8B on Multi-Turn Indonesian Chatbot Dataset
+# Using GPU A100 80GB
+
+# Model Configuration
+model:
+  name: "aitfindonesia/Bakti-8B-Base"
+  trust_remote_code: true
+  use_cache: false
+
+chat_template:
+  name: "qwen3"
+
+# Tokenizer Configuration
+tokenizer:
+  padding_side: "left"  
+  trust_remote_code: true
+
+# Quantization Configuration (4-bit for memory efficiency)
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "float16"
+  bnb_4bit_use_double_quant: true
+
+# Precision Configuration
+# Based on "Defeating the Training-Inference Mismatch via FP16" paper:
+# - FP16: Higher precision (11-bit mantissa), better training-inference consistency
+# - BF16: Lower precision (8-bit mantissa), larger dynamic range
+# For best results, use FP16 to avoid training-inference mismatch
+precision:
+  fp16: true   
+  bf16: false  
+
+# LoRA Configuration
+lora:
+  r: 16
+  lora_alpha: 32
+  target_modules: 
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  lora_dropout: 0.05  
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+# Dataset Configuration
+dataset:
+  name: "dtp-fine-tuning/dtp-multiturn-interview-valid-15k"
+  split: "train"
+  test_size: 0.2  
+  seed: 42
+  max_length: 2048  
+
+# Training Arguments
+training:
+  output_dir: "./SFT-Bakti-8B-Base-MultiTurn-Chatbot"
+  run_name: "SFT-Bakti-8B-Base-MultiTurn-Chatbot"
+
+  # Batch Configuration
+  per_device_train_batch_size: 8 
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 4
+
+  # Training Parameters
+  num_train_epochs: 2  
+  learning_rate: 0.00002  
+  warmup_ratio: 0.05  
+
+  # Optimizer (8-bit for memory efficiency)
+  optim: "adamw_8bit"
+  weight_decay: 0.01
+
+  # Scheduler
+  lr_scheduler_type: "linear"  
+
+  # Logging & Evaluation
+  logging_steps: 25  
+  eval_strategy: "steps"
+  eval_steps: 50  
+  save_strategy: "steps"
+  save_steps: 50  
+  save_total_limit: 3  
+
+  # Model Selection & Early Stopping
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  early_stopping_patience: 3  
+
+  # Misc
+  seed: 42
+  report_to: "wandb"  
+  dataset_num_proc: 2  
+  packing: false  
+
+# Weights & Biases Configuration
+wandb:
+  entity: "DTP2"
+  project: "chatbot_multiturn_experiment" 
+  tags:
+    - "bakti-8b"
+    - "unsloth"
+    - "multi-turn"
+    - "indonesian"
+    - "instruction-masking"
+  notes: "Fine-tuning Bakti-8B with Unsloth optimization and instruction masking"
+
+# Paths
+paths:
+  final_model_dir: "./SFT-Bakti-8B-Base-MultiTurn-Chatbot-final"
+  checkpoints_dir: "./checkpoints"
+  logs_dir: "./logs"
+
+# Push to Hub (optional)
+push_to_hub: false
+hub_model_id: ""  
+
+advanced:
+  use_flash_attention: true
+  use_neftune: true
+  neftune_noise_alpha: 5.0
+  max_grad_norm: 1.0

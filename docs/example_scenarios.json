@@ -1,0 +1,37 @@
+[
+    {
+        "name": "Junior Web Developer",
+        "messages": [
+            "Berikut data singkat saya:\nJenjang Pendidikan: D3\nJurusan: Teknik Informatika\nJudul Tugas Akhir: Pengembangan Aplikasi Manajemen Proyek Berbasis Web Menggunakan Framework CodeIgniter\nBidang Pelatihan: Pengembangan Web\nNama Pelatihan: Pelatihan Dasar Pemrograman Web dengan PHP dan MySQL\nSertifikasi: Belum memiliki sertifikasi\nBidang Sertifikasi: Tidak ada sertifikasi\nPosisi Pekerjaan: Junior Web Developer\nDeskripsi Tugas dan Tanggung Jawab: Membantu dalam pengembangan dan pemeliharaan fitur-fitur aplikasi web. Melakukan pengujian dasar dan perbaikan bug pada kode program. Berkoordinasi dengan tim untuk implementasi modul baru.\nLama Bekerja: 0 tahun 6 bulan 0 hari\nKeterampilan: HTML, CSS, JavaScript, PHP, MySQL, Git, Bootstrap, Problem Solving, Komunikasi, Debugging",
+            "Tugas akhir saya berfokus pada pengembangan aplikasi manajemen proyek menggunakan CodeIgniter. Tantangan terbesar adalah mengintegrasikan berbagai fitur dalam satu aplikasi, seperti manajemen tugas dan timeline proyek. Saya harus memastikan semua fitur dapat berfungsi dengan baik dan mudah digunakan."
+        ]
+    },
+    {
+        "name": "Data Analyst",
+        "messages": [
+            "Berikut data singkat saya:\nJenjang Pendidikan: S1\nJurusan: Statistika\nJudul Tugas Akhir: Analisis Prediksi Penjualan Menggunakan Metode Regresi Linear Berganda pada Data Penjualan Ritel\nBidang Pelatihan: Jaminan Kualitas Perangkat Lunak\nNama Pelatihan: Pelatihan Quality Assurance dan Pengujian Perangkat Lunak Berbasis Otomasi\nSertifikasi: Certified Software Quality Assurance Professional (CSQA)\nBidang Sertifikasi: Jaminan Kualitas Perangkat Lunak\nPosisi Pekerjaan: Magang Data dan Pelaporan\nDeskripsi Tugas dan Tanggung Jawab: Bertanggung jawab dalam pengumpulan, pengolahan, dan analisis data operasional untuk mendukung proses pelaporan manajemen. Membuat visualisasi data, memvalidasi keakuratan laporan, dan berkolaborasi dengan tim untuk meningkatkan efektivitas pemanfaatan data perusahaan.\nLama Bekerja: 0 tahun 3 bulan 0 hari\nKeterampilan: Python, SQL, Microsoft Excel, Data Visualization, Tableau, Data Analysis, Communication, Problem Solving, Teamwork, Attention to Detail",
+            "Tentu. Pertama, saya mengumpulkan data penjualan ritel dari beberapa sumber internal perusahaan, kemudian membersihkan data dari nilai-nilai yang hilang atau anomali. Setelah itu, saya melakukan eksplorasi data untuk memahami karakteristiknya. Untuk regresi, saya mengidentifikasi variabel-variabel yang berpotensi mempengaruhi penjualan, seperti promosi, harga, dan waktu. Selanjutnya, saya membangun model regresi linear berganda menggunakan Python, mengevaluasi akurasi model dengan metrik seperti R-squared dan RMSE, lalu menggunakan model tersebut untuk memprediksi penjualan di masa depan."
+        ]
+    },
+    {
+        "name": "DevOps Engineer",
+        "messages": [
+            "Berikut data singkat saya:\nJenjang Pendidikan: S1\nJurusan: Teknik Informatika\nJudul Tugas Akhir: Implementasi CI/CD Pipeline dengan Jenkins dan Docker untuk Aplikasi Microservices\nBidang Pelatihan: DevOps & Cloud Computing\nNama Pelatihan: AWS Certified Solutions Architect - Associate\nSertifikasi: AWS Solutions Architect Associate\nBidang Sertifikasi: Cloud Infrastructure\nPosisi Pekerjaan: DevOps Engineer\nDeskripsi Tugas dan Tanggung Jawab: Mengelola infrastruktur cloud, mengimplementasikan CI/CD pipeline, monitoring aplikasi production, dan melakukan automation untuk deployment process.\nLama Bekerja: 1 tahun 8 bulan 15 hari\nKeterampilan: Docker, Kubernetes, Jenkins, AWS, Terraform, Ansible, Python, Bash Scripting, Git, Linux Administration, Monitoring & Logging",
+            "Dalam tugas akhir saya, saya membangun CI/CD pipeline lengkap menggunakan Jenkins. Pipeline tersebut otomatis melakukan build, testing, dan deployment ke Docker containers. Tantangan utamanya adalah mengintegrasikan berbagai tools dan memastikan proses automated testing berjalan reliabel sebelum deployment ke production."
+        ]
+    },
+    {
+        "name": "Mobile Developer",
+        "messages": [
+            "Berikut data singkat saya:\nJenjang Pendidikan: S1\nJurusan: Teknik Informatika\nJudul Tugas Akhir: Aplikasi Mobile E-Commerce dengan Flutter dan Firebase Backend\nBidang Pelatihan: Mobile Development\nNama Pelatihan: Google Associate Android Developer\nSertifikasi: Google Associate Android Developer\nBidang Sertifikasi: Android Development\nPosisi Pekerjaan: Mobile Developer\nDeskripsi Tugas dan Tanggung Jawab: Mengembangkan aplikasi mobile untuk platform Android dan iOS, melakukan testing, fix bugs, dan berkoordinasi dengan tim backend untuk integrasi API.\nLama Bekerja: 1 tahun 2 bulan 0 hari\nKeterampilan: Flutter, Dart, Kotlin, Java, Firebase, REST API, Git, State Management (Provider, Bloc), UI/UX Implementation, Mobile Testing",
+            "Saya mengembangkan aplikasi e-commerce full-featured dengan Flutter, termasuk product catalog, shopping cart, payment integration, dan user authentication. Backend menggunakan Firebase untuk real-time data sync. Tantangan terbesar adalah mengoptimalkan performa aplikasi dan menangani state management untuk aplikasi yang kompleks."
+        ]
+    },
+    {
+        "name": "UI/UX Designer",
+        "messages": [
+            "Berikut data singkat saya:\nJenjang Pendidikan: S1\nJurusan: Desain Komunikasi Visual\nJudul Tugas Akhir: Redesain User Experience Platform Layanan Publik Berbasis User-Centered Design\nBidang Pelatihan: UI/UX Design\nNama Pelatihan: Google UX Design Professional Certificate\nSertifikasi: Google UX Design Professional Certificate\nBidang Sertifikasi: User Experience Design\nPosisi Pekerjaan: UI/UX Designer\nDeskripsi Tugas dan Tanggung Jawab: Melakukan user research, membuat wireframe dan prototype, mendesain user interface, melakukan usability testing, dan berkolaborasi dengan developer untuk implementasi design.\nLama Bekerja: 2 tahun 0 bulan 10 hari\nKeterampilan: Figma, Adobe XD, Sketch, User Research, Wireframing, Prototyping, Usability Testing, Design System, Visual Design, Communication",
+            "Dalam tugas akhir, saya melakukan research mendalam dengan users untuk memahami pain points mereka dalam menggunakan platform layanan publik. Kemudian saya membuat design baru berdasarkan findings tersebut. Challenge utamanya adalah menyeimbangkan kebutuhan berbagai user personas yang sangat berbeda, dari yang tech-savvy sampai yang kurang familiar dengan teknologi."
+        ]
+    }
+]

@@ -4,47 +4,15 @@
 
 This package contains all revised shell scripts for your `dtp-fine-tuning-research` project with correct path references and improved functionality.
 
-### Shell Scripts (7 files)
+### Shell Scripts (5 files)
 1. **setup.sh** - Main setup and verification script
-2. **setup_gemini.sh** - Gemini API configuration
-3. **run_training.sh** - Training pipeline script
-4. **run_inference.sh** - Gradio inference server
-5. **run_evaluation.sh** - OpenAI-based evaluation
-6. **run_evaluation_gemini.sh** - Gemini-based evaluation
-7. **run_pipeline.sh** - Master orchestration script
+2. **run_training.sh** - Training pipeline script
+3. **run_inference.sh** - Gradio inference server
+4. **run_evaluation.sh** - OpenAI-based evaluation
+5. **run_pipeline.sh** - Master orchestration script
 
-### Documentation (3 files)
-1. **INSTALLATION_GUIDE.md** - Quick start installation steps
-2. **SCRIPTS_REVISION_SUMMARY.md** - Detailed changes and usage guide
-3. **DEPLOYMENT_CHECKLIST.md** - Testing and verification checklist
-
-##  What Was Fixed
-
-### 1. **Path Corrections**
-- Config files now correctly reference `configs/*.yaml`
-- Python scripts now correctly reference `src/training/*.py`
-- Shell scripts now correctly reference `scripts/*.sh`
-- Models searched in both `src/training/SFT-*` and `src/utils/SFT-*`
-
-### 2. **Project Root Verification**
-- All scripts verify they're run from project root
-- Clear error messages if run from wrong directory
-- Helpful guidance on correct usage
-
-### 3. **Smart Model Detection**
--  Auto-detects latest model from both training and utils directories
--  Lists all available models for user selection
--  Handles missing models gracefully
-
-### 4. **Directory Management**
-- setup.sh now verifies instead of recreating existing directories
-- Only creates optional directories (logs, evaluation_results)
-- Reports status accurately
-
-### 5. **Better Error Handling**
-- Clear, actionable error messages
-- Suggests alternatives when files not found
-- Shows current state and expected state
+### Documentation
+See [**scripts_installation_guide.md**](docs/scripts_installation_guide.md)
 
 ## Quick Start
 
@@ -57,10 +25,10 @@ cp scripts/*.sh backup_scripts_$(date +%Y%m%d)/
 
 ### Step 2: Install New Scripts
 ```bash
-# Copy downloaded scripts to your scripts directory
+#cpy downloaded scripts to your scripts directory
 cp /path/to/downloaded/*.sh scripts/
 
-# Make executable
+#make executable
 chmod +x scripts/*.sh
 ```
 
@@ -83,43 +51,28 @@ chmod +x scripts/*.sh
 - Makes all scripts executable
 - **Key Change:** Now verifies instead of creating existing directories
 
-### setup_gemini.sh
-- Configures Gemini API
-- Tests API connection
-- Saves API key to environment
-- **Key Change:** Updated paths to `scripts/` and `src/training/`
-
 ### run_training.sh
 - Runs model training
 - Validates config files
 - Creates logs
 - **Key Changes:** 
-  - Default config: `configs/sft_qwen3_1_7B_improved.yaml`
-  - Default script: `src/training/training_script_qwen3_improved.py`
+  - Default config multi-turn: `configs/sft_diploy_8B.yaml`
+  - Default script: `src/training/train_unsloth_multi-turn.py`
 
 ### run_inference.sh
 - Launches Gradio web interface
 - Auto-detects latest model
 - Displays model information
 - **Key Changes:**
-  - Default script: `src/training/gradio_inference.py`
-  - Searches models in both `src/training/` and `src/utils/`
+  - Default script: `src/inference/gradio_inference.py`
+  - Searches models in root directory
 
 ### run_evaluation.sh
-- Evaluates model with OpenAI metrics
-- Supports sample data and custom datasets
-- Generates reports
+- Evaluates model with Openrouter models
+- Generates reports with ConfidentAI using deepeval library
 - **Key Changes:**
-  - Default script: `src/training/deepeval_evaluation.py`
+  - Default script: `src/eval/deepeval_my_model.py`
   - Auto-detects models from both locations
-
-### run_evaluation_gemini.sh
-- Evaluates model with Gemini metrics
-- Supports multiple Gemini models
-- Generates reports
-- **Key Changes:**
-  - Default script: `src/training/deepeval_evaluation_gemini.py`
-  - Logs to `evaluation_gemini_*.log`
 
 ### run_pipeline.sh
 - Interactive menu system
@@ -133,13 +86,7 @@ chmod +x scripts/*.sh
 ## Detailed Documentation
 
 ### For Installation
-See **INSTALLATION_GUIDE.md**
-
-### For Complete Changes
-See **SCRIPTS_REVISION_SUMMARY.md** (16KB, comprehensive)
-
-### For Testing
-See **DEPLOYMENT_CHECKLIST.md**
+See [**scripts_installation_guide.md**](docs/scripts_installation_guide.md)
 
 ## Usage Examples
 
@@ -158,13 +105,10 @@ See **DEPLOYMENT_CHECKLIST.md**
 ./scripts/run_inference.sh
 
 # Inference (specific model)
-./scripts/run_inference.sh -m src/training/SFT-Qwen3-1.7B-LoRA-9GB-final
+./scripts/run_inference.sh -m your-model-final
 
-# Evaluation with Gemini (quick test)
-./scripts/run_evaluation_gemini.sh -s
-
-# Evaluation with OpenAI (dataset)
-./scripts/run_evaluation.sh -d "izzulgod/indonesian-conversation" -n 100
+# Evaluation with deepeval
+./scripts/run_evaluation.sh
 ```
 
 ### Pipeline Operations
@@ -176,8 +120,6 @@ See **DEPLOYMENT_CHECKLIST.md**
 ./scripts/run_pipeline.sh train
 ./scripts/run_pipeline.sh inference
 ./scripts/run_pipeline.sh evaluate
-./scripts/run_pipeline.sh evaluate-gemini
-./scripts/run_pipeline.sh quick-test-gemini
 ```
 
 ## Requirements
@@ -195,17 +137,13 @@ dtp-fine-tuning-research/
 ```
 
 ### Python Scripts Expected Location
-- `src/training/training_script_qwen3_improved.py`
-- `src/training/gradio_inference.py`
-- `src/training/deepeval_evaluation.py`
-- `src/training/deepeval_evaluation_gemini.py`
+- `src/training/train_unsloth_multi-turn.py`
+- `src/training/train_unsloth_single_turn.py`
+- `src/inference/gradio_inference.py`
+- `src/eval/deepeval_my_model.py`
 
-### Environment Variables (Optional)
-```bash
-export WANDB_API_KEY="your-key"
-export OPENAI_API_KEY="your-key"  # For OpenAI evaluation
-export GEMINI_API_KEY="your-key"  # For Gemini evaluation
-```
+### Environment Variables (needed for not harcode)
+you can see the template on [**.env.template**](scripts/.env.template)
 
 ## Troubleshooting
 
@@ -217,40 +155,16 @@ chmod +x scripts/*.sh
 ### "Must be run from project root"
 ```bash
 cd ~/dtp-fine-tuning-research
-# Always run from here
-```
-
-### "No models found"
-```bash
-# Check model locations
-ls src/training/SFT-*/
-ls src/utils/SFT-*/
+#always run from here
 ```
 
 ### "Config/Script not found"
 ```bash
-# Verify files are in correct locations
+# verify files are in correct locations
 ls configs/
 ls src/training/*.py
-```
-
-## Migration from Old Scripts
-
-1. Your Python scripts should be in `src/training/` directory
-2. Your config files should be in `configs/` directory
-3. Your shell scripts should be in `scripts/` directory
-4. Your models can be in either `src/training/SFT-*` or `src/utils/SFT-*`
-
-If files are in wrong locations, move them:
-```bash
-# Example: Move Python scripts
-mv *.py src/training/
-
-# Example: Move configs
-mv *.yaml configs/
-
-# Example: Move models
-mv SFT-* src/training/
+ls src/inference/*.py
+ls src/eval/*.py
 ```
 
 ## Verification
@@ -267,27 +181,16 @@ cd ~/dtp-fine-tuning-research
 ./scripts/run_training.sh --help
 ./scripts/run_inference.sh --help
 ./scripts/run_evaluation.sh --help
-./scripts/run_evaluation_gemini.sh --help
 
 # 3. Pipeline should show menu
 ./scripts/run_pipeline.sh
 ```
 
-## Support
+## Get in Touch with Maintainers
+### Wildan: [![GitHub](https://img.shields.io/badge/GitHub-%23121011.svg?logo=github&logoColor=white)](https://github.com/wildanaziz) | [![Firefox](https://img.shields.io/badge/Firefox-FF7139?logo=firefoxbrowser&logoColor=white)](https://wildanaziz.vercel.app/) | [![Hugging Face](https://img.shields.io/badge/Hugging%20Face-FFD21E?logo=huggingface&logoColor=000)](https://huggingface.co/wildanaziz)
+### Syafiq: [![GitHub](https://img.shields.io/badge/GitHub-%23121011.svg?logo=github&logoColor=white)](https://github.com/syafiqirz)
+### Naufal: [![GitHub](https://img.shields.io/badge/GitHub-%23121011.svg?logo=github&logoColor=white)](https://github.com/NaufalArsa)
 
-If you encounter issues:
-
-1. Check **SCRIPTS_REVISION_SUMMARY.md** for detailed explanations
-2. Follow **DEPLOYMENT_CHECKLIST.md** for systematic testing
-3. Verify your directory structure matches the expected layout
-4. Ensure all Python scripts are in `src/training/`
-5. Ensure all config files are in `configs/`
-
-## Acknowledgments
-
-Revised to properly handle the established directory structure of the dtp-fine-tuning-research project, with improved path handling, better error messages, and smart model detection.
-
----
-
-**Version:** 2.0  
-**Date:** November 2024
+## Special thanks to:
+1. **[The Linux Command Line: A Complete Introduction — William E. Shotts, Jr.](https://linuxcommand.org/index.php)**
+2. **[Classic Shell Scripting — Arnold Robbins & Nelson H.F. Beebe](http://www.nylxs.com/docs/classicshellscripting.pdf)**

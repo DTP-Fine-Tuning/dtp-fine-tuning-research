@@ -1,6 +1,6 @@
-# notebooks
+# paper/
 
-Berisi Jupyter Notebooks untuk membantu developer dalam membuat arsitektur kode sebelum dibentuk pipeline. Juga sebagai panduan untuk menerapkannya pada google colab
+Berisikan paper yang digunakan sebagai panduan dalam melakukan proses fine tuning
 
 ## Get in Touch with Maintainers
 ### Wildan: [![GitHub](https://img.shields.io/badge/GitHub-%23121011.svg?logo=github&logoColor=white)](https://github.com/wildanaziz) | [![Firefox](https://img.shields.io/badge/Firefox-FF7139?logo=firefoxbrowser&logoColor=white)](https://wildanaziz.vercel.app/) | [![Hugging Face](https://img.shields.io/badge/Hugging%20Face-FFD21E?logo=huggingface&logoColor=000)](https://huggingface.co/wildanaziz)
