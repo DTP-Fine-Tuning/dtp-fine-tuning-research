@@ -1,33 +1,29 @@
 #!/bin/bash
+#gradio inference for diploy
+#author: Tim 2 DTP
 
-################################################################################
-# Gradio Inference Script for Fine-tuned Models
-# This script launches the Gradio web interface for interacting with models
-# Supports: Llama, Qwen, Mistral, Gemma, Phi, and other model families
-# Must be run from project root: ~/dtp-fine-tuning-research/
-################################################################################
+set -e
 
-set -e  # Exit on error
-
-# Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m' 
 
-# Default values - Updated for correct directory structure
-MODEL_PATH=""  # Will be auto-detected
+MODEL_PATH=""  
 BASE_MODEL=""
-INFERENCE_SCRIPT="src/training/multiturn_inference.py"
+
+#for multi-turn inference
+INFERENCE_SCRIPT="src/inference/gradio_inference_multi-turn.py"
+
+#uncomment this if you want to use single-turn inference
+# INFERENCE_SCRIPT="src/inference/gradio_inference_single-turn.py"
+
 PORT=7860
 MAX_NEW_TOKENS=512
 SHARE=false
 NO_4BIT=false
-
-################################################################################
-# Helper Functions
-################################################################################
+DEBUG=false
 
 print_header() {
     echo -e "${BLUE}================================================================================================${NC}"
@@ -66,11 +62,9 @@ verify_project_root() {
 }
 
 find_latest_model() {
-    # Search for models in both src/training and src/utils directories
     local latest_model=""
     local latest_time=0
     
-    # Check src/training/SFT-* directories
     if compgen -G "src/training/SFT-*" > /dev/null; then
         for model in src/training/SFT-*/; do
             if [ -d "$model" ]; then
@@ -83,7 +77,6 @@ find_latest_model() {
         done
     fi
     
-    # Check src/utils/SFT-* directories
     if compgen -G "src/utils/SFT-*" > /dev/null; then
         for model in src/utils/SFT-*/; do
             if [ -d "$model" ]; then
@@ -103,7 +96,6 @@ list_available_models() {
     print_info "Available models:"
     local count=0
     
-    # List models in src/training/
     if compgen -G "src/training/SFT-*" > /dev/null; then
         for model in src/training/SFT-*/; do
             if [ -d "$model" ]; then
@@ -113,7 +105,6 @@ list_available_models() {
         done
     fi
     
-    # List models in src/utils/
     if compgen -G "src/utils/SFT-*" > /dev/null; then
         for model in src/utils/SFT-*/; do
             if [ -d "$model" ]; then
@@ -170,17 +161,12 @@ check_port() {
 }
 
 get_local_ip() {
-    # Try to get local IP address
     LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
     if [ -z "$LOCAL_IP" ]; then
         LOCAL_IP="localhost"
     fi
     echo "$LOCAL_IP"
 }
-
-################################################################################
-# Argument Parsing
-################################################################################
 
 usage() {
     cat << EOF
@@ -200,11 +186,8 @@ EXAMPLES:
     # Run with auto-detected latest model
     ./scripts/run_inference.sh
 
-    # Run with specific Qwen model
-    ./scripts/run_inference.sh -m src/training/SFT-Qwen3-1.7B-LoRA-final
-
-    # Run with Llama model
-    ./scripts/run_inference.sh -m src/training/SFT-Llama3-1B-LoRA-final
+    # Run with specific model path
+    ./scripts/run_inference.sh -m src/training/SFT-Qwen3-1.7B-LoRA-9GB-final
 
     # Run on specific port and share publicly
     ./scripts/run_inference.sh -p 8080 -s
@@ -240,6 +223,10 @@ while [[ $# -gt 0 ]]; do
             NO_4BIT=true
             shift
             ;;
+        -d|--debug)
+            DEBUG=true
+            shift
+            ;;
         --script)
             INFERENCE_SCRIPT="$2"
             shift 2
@@ -256,19 +243,11 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-################################################################################
-# Main Execution
-################################################################################
+print_header "Diploy Model Inference - Gradio Interface"
 
-print_header "Fine-tuned Model Inference - Gradio Interface"
-
-# Verify we're in project root
 verify_project_root
-
-# Load environment variables from .env file
 load_env_file
 
-# Auto-detect model if not specified
 if [ -z "$MODEL_PATH" ]; then
     print_info "No model path specified, searching for models..."
     list_available_models
@@ -287,20 +266,17 @@ if [ -z "$MODEL_PATH" ]; then
     fi
 fi
 
-# Remove trailing slash from model path
 MODEL_PATH="${MODEL_PATH%/}"
 
-# Check if model path exists
 if [ ! -d "$MODEL_PATH" ]; then
     print_error "Model path not found: $MODEL_PATH"
     list_available_models
     exit 1
 fi
 
-# Check if inference script exists
 if [ ! -f "$INFERENCE_SCRIPT" ]; then
     print_error "Inference script not found: $INFERENCE_SCRIPT"
-    print_info "Expected location: src/training/multiturn_inference.py"
+    print_info "Expected location: src/inference/gradio_inference_multi-turn.py"
     exit 1
 fi
 
@@ -312,7 +288,6 @@ print_info "Share publicly: $SHARE"
 print_info "4-bit quantization: $([ "$NO_4BIT" = true ] && echo 'Disabled' || echo 'Enabled')"
 echo
 
-# Run checks
 check_gpu
 echo
 check_dependencies
@@ -320,7 +295,6 @@ echo
 check_port
 echo
 
-# Build command
 CMD="python $INFERENCE_SCRIPT --model-path \"$MODEL_PATH\" --port $PORT --max-new-tokens $MAX_NEW_TOKENS"
 
 if [ -n "$BASE_MODEL" ]; then
@@ -335,7 +309,10 @@ if [ "$NO_4BIT" = true ]; then
     CMD="$CMD --no-4bit"
 fi
 
-# Display model information
+if [ "$DEBUG" = true ]; then
+    CMD="$CMD --debug"
+fi
+
 print_header "Model Information"
 if [ -f "$MODEL_PATH/training_info.json" ]; then
     python - <<EOF
@@ -343,49 +320,24 @@ import json
 try:
     with open("$MODEL_PATH/training_info.json", 'r') as f:
         info = json.load(f)
-
-    model_family = info.get('model_family', 'Unknown')
-    print(f"Model Family: {model_family.upper() if model_family != 'Unknown' else model_family}")
+    
     print(f"Base Model: {info.get('model_name', 'Unknown')}")
     print(f"Training Completed: {info.get('training_completed', 'Unknown')}")
     print(f"Dataset: {info.get('dataset_info', {}).get('name', 'Unknown')}")
     print(f"Max Length: {info.get('dataset_info', {}).get('max_length', 'Unknown')}")
-
-    # Show LoRA configuration
-    lora_config = info.get('lora_config', {})
-    if lora_config:
-        print(f"LoRA Rank (r): {lora_config.get('r', 'Unknown')}")
-        print(f"LoRA Alpha: {lora_config.get('lora_alpha', 'Unknown')}")
 except Exception as e:
     print(f"Could not read training info: {e}")
 EOF
 else
     print_warning "training_info.json not found in model directory"
-    # Try to detect from adapter_config.json
-    if [ -f "$MODEL_PATH/adapter_config.json" ]; then
-        print_info "Found adapter_config.json, reading base model info..."
-        python - <<EOF
-import json
-try:
-    with open("$MODEL_PATH/adapter_config.json", 'r') as f:
-        config = json.load(f)
-    print(f"Base Model: {config.get('base_model_name_or_path', 'Unknown')}")
-    print(f"LoRA Rank (r): {config.get('r', 'Unknown')}")
-    print(f"LoRA Alpha: {config.get('lora_alpha', 'Unknown')}")
-except Exception as e:
-    print(f"Could not read adapter config: {e}")
-EOF
-    fi
 fi
 echo
 
-# Start server
 print_header "Starting Gradio Server"
 print_info "Launching Gradio interface..."
 print_info "Please wait, loading model..."
 echo
 
-# Display access URLs
 LOCAL_IP=$(get_local_ip)
 print_info "Server will be accessible at:"
 echo "  - Local: http://localhost:$PORT"
@@ -397,10 +349,6 @@ echo
 
 print_warning "Press Ctrl+C to stop the server"
 echo
-
-# Run the inference script
 eval $CMD
-
-# This will only run if the server is stopped
 print_header "Server Stopped"
 print_info "Gradio interface closed."
