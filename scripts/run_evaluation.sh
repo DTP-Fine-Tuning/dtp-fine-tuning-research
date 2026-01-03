@@ -1,35 +1,26 @@
 #!/bin/bash
+# deepeval scripts - Interactive Conversational Evaluation
+# author: Tim 2 DTP
+# adapted for deepeval_my_model.py approach
 
-################################################################################
-# DeepEval Evaluation Script for Qwen3 Fine-tuned Model (OpenAI)
-# This script evaluates the model using various metrics with OpenAI
-# Must be run from project root: ~/dtp-fine-tuning-research/
-################################################################################
-
-set -e  # Exit on error
-
-# Color codes for output
+set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-# Default values - Updated for correct directory structure
-MODEL_PATH=""  # Will be auto-detected
-BASE_MODEL=""
-EVALUATION_SCRIPT="src/training/deepeval_evaluation.py"
+MODEL_PATH=""
+EVALUATION_SCRIPT="src/eval/deepeval_my_model.py"
 OUTPUT_DIR="evaluation_results"
-DATASET_NAME=""
-DATASET_PATH=""
+JUDGE_MODEL=""
+OPENROUTER_API_KEY=""
+LOAD_IN_4BIT=true
+GENERATION_TEMPERATURE=0.3
+NUM_SCENARIOS=3
+SCENARIO_FILE=""
 USE_SAMPLE_DATA=false
-TEST_SIZE=100
-NO_4BIT=false
-METRICS=""
-
-################################################################################
-# Helper Functions
-################################################################################
 
 print_header() {
     echo -e "${BLUE}================================================================================================${NC}"
@@ -47,6 +38,10 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_highlight() {
+    echo -e "${CYAN}[SELECT]${NC} $1"
 }
 
 load_env_file() {
@@ -71,7 +66,6 @@ find_latest_model() {
     local latest_model=""
     local latest_time=0
     
-    # Check src/training/SFT-* directories
     if compgen -G "src/training/SFT-*" > /dev/null; then
         for model in src/training/SFT-*/; do
             if [ -d "$model" ]; then
@@ -84,7 +78,6 @@ find_latest_model() {
         done
     fi
     
-    # Check src/utils/SFT-* directories
     if compgen -G "src/utils/SFT-*" > /dev/null; then
         for model in src/utils/SFT-*/; do
             if [ -d "$model" ]; then
@@ -101,35 +94,130 @@ find_latest_model() {
 }
 
 list_available_models() {
-    print_info "Available models:"
+    print_info "Available models in workspace:"
     local count=0
+    local models=()
     
-    # List models in src/training/
     if compgen -G "src/training/SFT-*" > /dev/null; then
         for model in src/training/SFT-*/; do
             if [ -d "$model" ]; then
-                echo "  - $model"
+                models+=("$model")
+                echo "  [$count] $model"
                 ((count++))
             fi
         done
     fi
     
-    # List models in src/utils/
     if compgen -G "src/utils/SFT-*" > /dev/null; then
         for model in src/utils/SFT-*/; do
             if [ -d "$model" ]; then
-                echo "  - $model"
+                models+=("$model")
+                echo "  [$count] $model"
                 ((count++))
             fi
         done
     fi
     
+    if compgen -G "sft_*" > /dev/null; then
+        for model in sft_*/; do
+            if [ -d "$model" ]; then
+                models+=("$model")
+                echo "  [$count] $model"
+                ((count++))
+            fi
+        done
+    fi
+    
+    echo ""
+    print_info "Or enter a HuggingFace model path (e.g., wildanaziz/Diploy-8B-Base)"
+    
     if [ $count -eq 0 ]; then
-        echo "  No models found. Please run training first."
+        echo "  No local models found. Please use HuggingFace model or train a model first."
         return 1
     fi
     
+    echo "${models[@]}"
     return 0
+}
+
+interactive_model_selection() {
+    print_header "Model Selection"
+    
+    local models_output=$(list_available_models)
+    local models=($(echo "$models_output" | tail -1))
+    
+    echo ""
+    print_highlight "Enter model selection:"
+    read -p "  [Number] for local model, [Path] for HuggingFace model, or [Enter] for latest: " model_choice
+    
+    if [ -z "$model_choice" ]; then
+        MODEL_PATH=$(find_latest_model)
+        if [ -z "$MODEL_PATH" ]; then
+            print_error "No models found"
+            exit 1
+        fi
+        print_info "Using latest model: $MODEL_PATH"
+    elif [[ "$model_choice" =~ ^[0-9]+$ ]]; then
+        if [ "$model_choice" -lt "${#models[@]}" ]; then
+            MODEL_PATH="${models[$model_choice]}"
+            print_info "Selected local model: $MODEL_PATH"
+        else
+            print_error "Invalid selection number"
+            exit 1
+        fi
+    else
+        MODEL_PATH="$model_choice"
+        print_info "Using custom model path: $MODEL_PATH"
+    fi
+}
+
+select_judge_model() {
+    print_header "Judge Model Selection (OpenRouter API)"
+    
+    echo ""
+    print_info "Available judge models:"
+    echo "  [1] openai/gpt-4o-mini (Recommended - Best balance)"
+    echo "  [2] openai/gpt-3.5-turbo (Faster, cheaper)"
+    echo "  [3] openai/gpt-4o (Most accurate, expensive)"
+    echo "  [4] anthropic/claude-3.5-sonnet (Alternative, high quality)"
+    echo "  [5] anthropic/claude-3-haiku (Fast, affordable)"
+    echo "  [6] Custom model ID"
+    
+    echo ""
+    print_highlight "Select judge model [1-6] (default: 1):"
+    read -p "  Your choice: " judge_choice
+    
+    case ${judge_choice:-1} in
+        1)
+            JUDGE_MODEL="openai/gpt-4o-mini"
+            print_info "Using: GPT-4o Mini (balanced)"
+            ;;
+        2)
+            JUDGE_MODEL="openai/gpt-3.5-turbo"
+            print_info "Using: GPT-3.5 Turbo (fast)"
+            ;;
+        3)
+            JUDGE_MODEL="openai/gpt-4o"
+            print_info "Using: GPT-4o (most accurate)"
+            ;;
+        4)
+            JUDGE_MODEL="anthropic/claude-3.5-sonnet"
+            print_info "Using: Claude 3.5 Sonnet"
+            ;;
+        5)
+            JUDGE_MODEL="anthropic/claude-3-haiku"
+            print_info "Using: Claude 3 Haiku"
+            ;;
+        6)
+            read -p "  Enter custom model ID: " custom_model
+            JUDGE_MODEL="$custom_model"
+            print_info "Using: $JUDGE_MODEL"
+            ;;
+        *)
+            JUDGE_MODEL="openai/gpt-4o-mini"
+            print_warning "Invalid choice, using default: GPT-4o Mini"
+            ;;
+    esac
 }
 
 check_gpu() {
@@ -155,61 +243,108 @@ check_dependencies() {
     fi
 }
 
-check_openai_key() {
-    if [ -z "$OPENAI_API_KEY" ]; then
-        print_warning "OPENAI_API_KEY not set."
-        print_warning "DeepEval uses GPT models for evaluation metrics."
-        print_info "You can add it to .env file or set with: export OPENAI_API_KEY='your-key-here'"
-        read -p "Do you want to continue without OpenAI API key? (Evaluation may fail) [y/N]: " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
+check_deepeval_login() {
+    print_info "Checking DeepEval configuration..."
+    
+    if [ ! -f "$HOME/.deepeval/config.json" ] && [ ! -f ".deepeval/config.json" ]; then
+        print_warning "DeepEval not configured yet."
+        print_info "DeepEval requires login for tracking evaluation results."
+        echo ""
+        print_highlight "Running 'deepeval login' to configure..."
+        echo ""
+        
+        deepeval login
+        
+        if [ $? -ne 0 ]; then
+            print_error "DeepEval login failed. Evaluation may not track results properly."
+            read -p "Continue anyway? [y/N]: " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
+        else
+            print_info "DeepEval login successful!"
         fi
     else
-        print_info "OpenAI API key found."
+        print_info "DeepEval already configured."
     fi
 }
 
-################################################################################
-# Argument Parsing
-################################################################################
+check_openai_key() {
+    if [ -z "$OPENROUTER_API_KEY" ]; then
+        print_warning "OPENROUTER_API_KEY not set in environment."
+        print_info "DeepEval uses OpenRouter API for evaluation metrics as judge."
+        echo ""
+        print_highlight "Enter your OpenRouter API key (or press Enter to use default):"
+        read -s -p "  API Key: " user_api_key
+        echo ""
+        
+        if [ -n "$user_api_key" ]; then
+            OPENROUTER_API_KEY="$user_api_key"
+            export OPENROUTER_API_KEY
+            print_info "OpenRouter API key set successfully."
+        fi
+    else
+        print_info "OpenRouter API key found in environment."
+    fi
+}
 
 usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
 
+DESCRIPTION:
+    Interactive conversational evaluation script using DeepEval framework.
+    Evaluates chatbot models with conversational and safety metrics.
+    Adapted from deepeval_my_model.py approach.
+
 OPTIONS:
-    -m, --model-path PATH       Path to fine-tuned model (auto-detected if not specified)
-    -b, --base-model NAME       Base model name (optional)
+    -m, --model-path PATH       Path to fine-tuned model (interactive if not specified)
+    -j, --judge-model MODEL     Judge model for evaluation (interactive if not specified)
+    -k, --api-key KEY           OpenRouter API key (interactive if not specified)
     -o, --output-dir DIR        Output directory for results (default: $OUTPUT_DIR)
-    -d, --dataset NAME          HuggingFace dataset name for evaluation
-    -f, --dataset-path PATH     Local dataset path for evaluation
-    -s, --use-sample-data       Use built-in sample test data
-    -n, --test-size NUM         Number of samples to evaluate (default: $TEST_SIZE)
-    --metrics METRICS           Specific metrics to use (space-separated)
-                                Available: correctness coherence relevancy 
-                                          context_consistency hallucination
-    --no-4bit                   Disable 4-bit quantization
-    --script FILE               Path to evaluation script (default: $EVALUATION_SCRIPT)
+    -s, --script FILE           Evaluation script path (default: $EVALUATION_SCRIPT)
+    --scenario-file FILE        Path to custom scenario JSON file
+    --use-sample-data           Use default sample scenarios (quick test)
+    --no-4bit                   Disable 4-bit quantization for model loading
+    --temperature TEMP          Generation temperature (default: $GENERATION_TEMPERATURE)
+    --scenarios NUM             Number of test scenarios (default: $NUM_SCENARIOS)
     -h, --help                  Show this help message
 
+EVALUATION METRICS:
+    Conversational Metrics (5):
+      - Turn Relevancy: Response addresses user message
+      - Knowledge Retention: Remembers context across turns
+      - Role Adherence: Maintains professional interviewer persona
+      - Conversation Completeness: Gathers all needed information
+      - Topic Adherence: Stays focused on relevant topics
+    
+    Safety Metrics (3):
+      - Toxicity: Detects harmful/offensive language
+      - Bias: Identifies discrimination
+      - Hallucination: Ensures factual accuracy
+
 EXAMPLES:
-    # Evaluate with sample data (quick test)
-    ./scripts/run_evaluation.sh -s
+    # Interactive mode (recommended)
+    ./scripts/run_evaluation.sh
 
-    # Evaluate specific model with sample data
-    ./scripts/run_evaluation.sh -m src/training/SFT-Qwen3-1.7B-LoRA-9GB-final -s
+    # Quick test with default scenarios
+    ./scripts/run_evaluation.sh -m wildanaziz/Diploy-8B-Base --use-sample-data
 
-    # Evaluate on specific dataset
-    ./scripts/run_evaluation.sh -d "izzulgod/indonesian-conversation" -n 50
+    # Full evaluation with custom scenarios
+    ./scripts/run_evaluation.sh -m wildanaziz/Diploy-8B-Base --scenario-file my_scenarios.json
 
-    # Evaluate with specific metrics only
-    ./scripts/run_evaluation.sh -s --metrics correctness coherence
+    # Full specification
+    ./scripts/run_evaluation.sh -m wildanaziz/Diploy-8B-Base -j openai/gpt-4o-mini --scenario-file scenarios.json
+
+    # Disable quantization for larger GPUs
+    ./scripts/run_evaluation.sh --no-4bit
 
 NOTES:
-    - DeepEval requires OpenAI API key for most metrics
-    - Set OPENAI_API_KEY environment variable or add to .env file
-    - Using sample data (-s) is recommended for quick testing
+    - Evaluation generates conversations dynamically using your model
+    - OpenRouter API acts as the judge to evaluate response quality
+    - Results include scores for all 8 metrics (conversational + safety)
+    - Default judge model: openai/gpt-4o-mini (best balance of quality/cost)
 EOF
 }
 
@@ -219,44 +354,41 @@ while [[ $# -gt 0 ]]; do
             MODEL_PATH="$2"
             shift 2
             ;;
-        -b|--base-model)
-            BASE_MODEL="$2"
+        -j|--judge-model)
+            JUDGE_MODEL="$2"
+            shift 2
+            ;;
+        -k|--api-key)
+            OPENROUTER_API_KEY="$2"
             shift 2
             ;;
         -o|--output-dir)
             OUTPUT_DIR="$2"
             shift 2
             ;;
-        -d|--dataset)
-            DATASET_NAME="$2"
-            shift 2
-            ;;
-        -f|--dataset-path)
-            DATASET_PATH="$2"
-            shift 2
-            ;;
-        -s|--use-sample-data)
-            USE_SAMPLE_DATA=true
-            shift
-            ;;
-        -n|--test-size)
-            TEST_SIZE="$2"
-            shift 2
-            ;;
-        --metrics)
-            shift
-            while [[ $# -gt 0 ]] && [[ ! $1 =~ ^- ]]; do
-                METRICS="$METRICS $1"
-                shift
-            done
-            ;;
-        --no-4bit)
-            NO_4BIT=true
-            shift
-            ;;
-        --script)
+        -s|--script)
             EVALUATION_SCRIPT="$2"
             shift 2
+            ;;
+        --no-4bit)
+            LOAD_IN_4BIT=false
+            shift
+            ;;
+        --temperature)
+            GENERATION_TEMPERATURE="$2"
+            shift 2
+            ;;
+        --scenarios)
+            NUM_SCENARIOS="$2"
+            shift 2
+            ;;
+        --scenario-file)
+            SCENARIO_FILE="$2"
+            shift 2
+            ;;
+        --use-sample-data)
+            USE_SAMPLE_DATA=true
+            shift
             ;;
         -h|--help)
             usage
@@ -270,209 +402,132 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-################################################################################
-# Main Execution
-################################################################################
-
-print_header "Qwen3 Model Evaluation - DeepEval (OpenAI)"
-
-# Verify we're in project root
+print_header "Conversational Model Evaluation - DeepEval"
 verify_project_root
-
-# Load environment variables from .env file
 load_env_file
 
-# Auto-detect model if not specified
 if [ -z "$MODEL_PATH" ]; then
-    print_info "No model path specified, searching for models..."
-    list_available_models
-    
-    MODEL_PATH=$(find_latest_model)
-    if [ -z "$MODEL_PATH" ]; then
-        print_error "No models found. Please train a model first or specify -m option."
-        exit 1
-    fi
-    
-    print_info "Auto-detected latest model: $MODEL_PATH"
-    read -p "Use this model? [Y/n]: " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Nn]$ ]]; then
-        read -p "Enter model path: " MODEL_PATH
-    fi
+    interactive_model_selection
 fi
 
-# Remove trailing slash from model path
 MODEL_PATH="${MODEL_PATH%/}"
-
-# Check if model path exists
-if [ ! -d "$MODEL_PATH" ]; then
-    print_error "Model path not found: $MODEL_PATH"
-    list_available_models
+if [[ ! "$MODEL_PATH" =~ / ]]; then
+    print_error "Invalid model path: $MODEL_PATH"
     exit 1
 fi
 
-# Check if evaluation script exists
+if [[ "$MODEL_PATH" =~ ^[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+$ ]]; then
+    print_info "Detected HuggingFace model: $MODEL_PATH"
+elif [ ! -d "$MODEL_PATH" ]; then
+    print_error "Local model path not found: $MODEL_PATH"
+    exit 1
+fi
+
 if [ ! -f "$EVALUATION_SCRIPT" ]; then
     print_error "Evaluation script not found: $EVALUATION_SCRIPT"
-    print_info "Expected location: src/training/deepeval_evaluation.py"
+    print_info "Expected location: src/eval/deepeval_my_model.py"
     exit 1
 fi
 
-# Validate evaluation mode
-if [ "$USE_SAMPLE_DATA" = false ] && [ -z "$DATASET_NAME" ] && [ -z "$DATASET_PATH" ]; then
-    print_error "Must specify either --use-sample-data, --dataset, or --dataset-path"
-    usage
-    exit 1
+if [ -z "$JUDGE_MODEL" ]; then
+    select_judge_model
 fi
 
-print_info "Model path: $MODEL_PATH"
-print_info "Evaluation script: $EVALUATION_SCRIPT"
-print_info "Output directory: $OUTPUT_DIR"
+check_openai_key
 
+echo ""
+print_info "Configuration Summary:"
+print_info "  Model to evaluate: $MODEL_PATH"
+print_info "  Judge model: $JUDGE_MODEL"
+print_info "  Evaluation script: $EVALUATION_SCRIPT"
+print_info "  Output directory: $OUTPUT_DIR"
+print_info "  4-bit quantization: $LOAD_IN_4BIT"
+print_info "  Generation temperature: $GENERATION_TEMPERATURE"
+print_info "  Number of scenarios: $NUM_SCENARIOS"
+if [ -n "$SCENARIO_FILE" ]; then
+    print_info "  Custom scenario file: $SCENARIO_FILE"
+else
+    print_info "  Using: Default scenarios"
+fi
 if [ "$USE_SAMPLE_DATA" = true ]; then
-    print_info "Evaluation mode: Sample data"
-elif [ -n "$DATASET_NAME" ]; then
-    print_info "Evaluation mode: HuggingFace dataset ($DATASET_NAME)"
-    print_info "Test size: $TEST_SIZE samples"
-elif [ -n "$DATASET_PATH" ]; then
-    print_info "Evaluation mode: Local dataset ($DATASET_PATH)"
-    print_info "Test size: $TEST_SIZE samples"
-fi
-
-if [ -n "$METRICS" ]; then
-    print_info "Using specific metrics:$METRICS"
+    print_info "  Mode: Quick test (sample data)"
+else
+    print_info "  Mode: Full evaluation"
 fi
 echo
 
-# Run checks
 check_gpu
 echo
 check_dependencies
 echo
-check_openai_key
+check_deepeval_login
 echo
 
-# Create output directory
 mkdir -p "$OUTPUT_DIR"
 print_info "Created output directory: $OUTPUT_DIR"
 echo
 
-# Display model information
-print_header "Model Information"
-if [ -f "$MODEL_PATH/training_info.json" ]; then
-    python - <<EOF
-import json
-try:
-    with open("$MODEL_PATH/training_info.json", 'r') as f:
-        info = json.load(f)
-    
-    print(f"Base Model: {info.get('model_name', 'Unknown')}")
-    print(f"Training Completed: {info.get('training_completed', 'Unknown')}")
-    print(f"Dataset: {info.get('dataset_info', {}).get('name', 'Unknown')}")
-except Exception as e:
-    print(f"Could not read training info: {e}")
-EOF
-else
-    print_warning "training_info.json not found in model directory"
-fi
+print_header "Evaluation Information"
+print_info "This evaluation will:"
+print_info "  1. Load your model: $MODEL_PATH"
+print_info "  2. Generate $NUM_SCENARIOS interview conversations dynamically"
+print_info "  3. Evaluate with 8 metrics (5 conversational + 3 safety)"
+print_info "  4. Use $JUDGE_MODEL as the judge/evaluator"
+echo
+print_info "Metrics to be evaluated:"
+print_info "  [Conversational] Turn Relevancy, Knowledge Retention"
+print_info "  [Role & Task] Role Adherence, Conversation Completeness, Topic Adherence"
+print_info "  [Safety] Toxicity, Bias, Hallucination"
 echo
 
-# Build command
-CMD="python $EVALUATION_SCRIPT --model-path \"$MODEL_PATH\" --output-dir \"$OUTPUT_DIR\""
-
-if [ -n "$BASE_MODEL" ]; then
-    CMD="$CMD --base-model \"$BASE_MODEL\""
-fi
-
-if [ "$USE_SAMPLE_DATA" = true ]; then
-    CMD="$CMD --use-sample-data"
-fi
-
-if [ -n "$DATASET_NAME" ]; then
-    CMD="$CMD --dataset-name \"$DATASET_NAME\" --test-size $TEST_SIZE"
-fi
-
-if [ -n "$DATASET_PATH" ]; then
-    CMD="$CMD --dataset-path \"$DATASET_PATH\" --test-size $TEST_SIZE"
-fi
-
-if [ "$NO_4BIT" = true ]; then
-    CMD="$CMD --no-4bit"
-fi
-
-if [ -n "$METRICS" ]; then
-    CMD="$CMD --metrics$METRICS"
-fi
-
-# Confirm before starting
-read -p "$(echo -e ${GREEN}Do you want to start evaluation? [y/N]:${NC} )" -n 1 -r
+#inform user before starting
+read -p "$(echo -e ${GREEN}Start evaluation? [y/N]:${NC} )" -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     print_warning "Evaluation cancelled by user."
     exit 0
 fi
 
-# Start evaluation
+#start eval
 print_header "Starting Evaluation"
 print_info "Evaluation started at: $(date)"
-print_warning "This may take a while depending on test size and metrics..."
+print_warning "This may take 10-30 minutes depending on model size and scenarios..."
 echo
 
-# Create timestamp for log file
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_FILE="${OUTPUT_DIR}/evaluation_${TIMESTAMP}.log"
 
-# Run evaluation with logging
-eval $CMD 2>&1 | tee "$LOG_FILE"
+export EVAL_MODEL_PATH="$MODEL_PATH"
+export EVAL_JUDGE_MODEL="$JUDGE_MODEL"
+export OPENROUTER_API_KEY="$OPENROUTER_API_KEY"
+export EVAL_LOAD_4BIT="$LOAD_IN_4BIT"
+export EVAL_TEMPERATURE="$GENERATION_TEMPERATURE"
+export EVAL_NUM_SCENARIOS="$NUM_SCENARIOS"
+export EVAL_SCENARIO_FILE="$SCENARIO_FILE"
+export EVAL_USE_SAMPLE_DATA="$USE_SAMPLE_DATA"
 
-# Check evaluation result
-if [ ${PIPESTATUS[0]} -eq 0 ]; then
+#run eval
+python "$EVALUATION_SCRIPT" 2>&1 | tee "$LOG_FILE"
+
+EVAL_EXIT_CODE=${PIPESTATUS[0]}
+
+if [ $EVAL_EXIT_CODE -eq 0 ]; then
     print_header "Evaluation Completed Successfully"
     print_info "Evaluation finished at: $(date)"
-    print_info "Results saved to: $OUTPUT_DIR"
     print_info "Log file: $LOG_FILE"
     echo
     
-    # List generated files
-    print_info "Generated files:"
-    ls -lh "$OUTPUT_DIR" | grep -v "^total" | awk '{print "  - " $9 " (" $5 ")"}'
+    print_info "Evaluation completed with all metrics:"
+    print_info "  [DONE] Conversational metrics (5): Turn Relevancy, Knowledge Retention,"
+    print_info "    Role Adherence, Conversation Completeness, Topic Adherence"
+    print_info "  [DONE] Safety metrics (3): Toxicity, Bias, Hallucination"
     echo
     
-    # Display summary if available
-    SUMMARY_FILE="$OUTPUT_DIR/evaluation_summary.json"
-    if [ -f "$SUMMARY_FILE" ]; then
-        print_header "Evaluation Summary"
-        python - <<EOF
-import json
-try:
-    with open("$SUMMARY_FILE", 'r') as f:
-        summary = json.load(f)
-    
-    if 'single_turn' in summary:
-        print("\nSingle-Turn Metrics:")
-        for metric, value in summary['single_turn'].items():
-            if isinstance(value, (int, float)):
-                print(f"  - {metric}: {value:.3f}")
-    
-    if 'multi_turn' in summary:
-        print("\nMulti-Turn Metrics:")
-        for metric, value in summary['multi_turn'].items():
-            if isinstance(value, (int, float)):
-                print(f"  - {metric}: {value:.3f}")
-except Exception as e:
-    print(f"Could not read summary: {e}")
-EOF
-    fi
-    
-    # Check for markdown report
-    REPORT_FILE="$OUTPUT_DIR/evaluation_report.md"
-    if [ -f "$REPORT_FILE" ]; then
-        echo
-        print_info "Detailed report available at: $REPORT_FILE"
-        print_info "View with: cat $REPORT_FILE"
-    fi
+    print_info "Check the log file for detailed results and scores."
+    print_info "DeepEval results are also available in the deepeval results portal."
 else
     print_header "Evaluation Failed"
-    print_error "Evaluation failed. Check logs at: $LOG_FILE"
+    print_error "Evaluation failed with exit code: $EVAL_EXIT_CODE"
+    print_error "Check logs at: $LOG_FILE"
     exit 1
 fi

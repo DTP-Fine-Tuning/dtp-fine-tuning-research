@@ -1,6 +1,9 @@
 # Virtual environment
 .venv/
 
+# dont push models
+models/
+
 # Cache & artifacts
 __pycache__/
 *.pyc
@@ -16,9 +19,6 @@ __pycache__/
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
 
-# Dataset lokal (jangan commit data besar)
-data/
-
 # MacOS system files
 .DS_Store
 .AppleDouble
@@ -32,3 +32,9 @@ Desktop.ini
 # IDE/editor
 .vscode/
 .idea/
+
+# unnecessary files and folders
+MD/
+_model/
+*.jsonl
+*.txt

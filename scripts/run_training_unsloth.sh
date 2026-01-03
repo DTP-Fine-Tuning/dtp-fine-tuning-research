@@ -1,27 +1,26 @@
 #!/bin/bash
-# Unsloth SFT Fine-Tuning Training Script
-# Optimized for Qwen3 models with Unsloth acceleration
-# Must be run from project root: ~/dtp-fine-tuning-research/
+#unsloth training script
+#author: Tim 2 DTP
 
 
-set -e  # Exit on error
-
-# Color codes for output
+set -e 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m' 
 
-# Default values - Unsloth specific
+#def values
 CONFIG_FILE="configs/test/sft_qwen3_unsloth_test.yaml"
-TRAINING_SCRIPT="src/training/train_unsloth.py"
+TRAINING_SCRIPT="src/training/train_unsloth_multi-turn.py"
+
+#if u wanna train for single turn use train_unsloth_single_turn.py for single-turn datasets
+# TRAINING_SCRIPT="src/training/train_unsloth_single_turn.py"
 LOG_DIR="logs"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_FILE="${LOG_DIR}/training_unsloth_${TIMESTAMP}.log"
 
-# Helper Functions
 print_header() {
     echo -e "${CYAN}================================================================================================${NC}"
     echo -e "${CYAN}$1${NC}"
@@ -65,9 +64,7 @@ check_gpu() {
     fi
     
     print_info "Checking GPU availability..."
-    nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader
-    
-    # Check CUDA version
+    nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader    
     CUDA_VERSION=$(nvidia-smi | grep "CUDA Version" | awk '{print $9}')
     print_info "CUDA Version: $CUDA_VERSION"
     return 0
@@ -76,45 +73,41 @@ check_gpu() {
 check_unsloth_dependencies() {
     print_info "Checking Unsloth dependencies..."
     
-    # Check if Python is available
     if ! command -v python &> /dev/null; then
         print_error "Python not found. Please install Python 3.8 or higher."
         exit 1
     fi
     
     PYTHON_VERSION=$(python --version | cut -d' ' -f2)
-    print_info "Python version: $PYTHON_VERSION"
-    
-    # Check Unsloth specific packages
+    print_info "Python version: $PYTHON_VERSION"    
     print_info "Verifying Unsloth installation..."
-    python -c "from unsloth import FastLanguageModel; print('  ✓ Unsloth installed')" 2>/dev/null || {
+    python -c "from unsloth import FastLanguageModel; print('  [DONE] Unsloth installed')" 2>/dev/null || {
         print_error "Unsloth not installed. Please install with:"
         echo "  pip install unsloth"
         exit 1
     }
     
-    # Check other required packages
-    python -c "import torch; print(f'  ✓ PyTorch {torch.__version__}')" 2>/dev/null || {
+    python -c "import torch; print(f'  [DONE] PyTorch {torch.__version__}')" 2>/dev/null || {
         print_error "PyTorch not installed"
         exit 1
     }
     
-    python -c "import transformers; print(f'  ✓ Transformers {transformers.__version__}')" 2>/dev/null || {
+    python -c "import transformers; print(f'  [DONE] Transformers {transformers.__version__}')" 2>/dev/null || {
         print_error "Transformers not installed"
         exit 1
     }
     
-    python -c "import trl; print(f'  ✓ TRL {trl.__version__}')" 2>/dev/null || {
+    python -c "import trl; print(f'  [DONE] TRL {trl.__version__}')" 2>/dev/null || {
         print_error "TRL not installed"
         exit 1
     }
     
-    python -c "import peft; print(f'  ✓ PEFT {peft.__version__}')" 2>/dev/null || {
+    python -c "import peft; print(f'  [DONE] PEFT {peft.__version__}')" 2>/dev/null || {
         print_error "PEFT not installed"
         exit 1
     }
     
-    python -c "import datasets; print(f'  ✓ Datasets {datasets.__version__}')" 2>/dev/null || {
+    python -c "import datasets; print(f'  [DONE] Datasets {datasets.__version__}')" 2>/dev/null || {
         print_error "Datasets not installed"
         exit 1
     }
@@ -143,7 +136,6 @@ setup_logging() {
     print_info "Logs will be saved to: $LOG_FILE"
 }
 
-# Argument Parsing
 usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
@@ -163,7 +155,7 @@ EXAMPLES:
     ./scripts/run_training_unsloth.sh
 
     # Run with custom config
-    ./scripts/run_training_unsloth.sh -c configs/sft_qwen3_unsloth_test.yaml
+    ./scripts/run_training_unsloth.sh -c configs/sft_diploy_8B.yaml
 
     # Run without W&B logging
     ./scripts/run_training_unsloth.sh --no-wandb
@@ -215,16 +207,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 
-# Main Execution
 print_header "Unsloth Fine-Tuning Training (Qwen3 Optimized)"
-
-# Verify we're in project root
 verify_project_root
-
-# Load environment variables from .env file
 load_env_file
 
-# Check if files exist
 if [ ! -f "$CONFIG_FILE" ]; then
     print_error "Config file not found: $CONFIG_FILE"
     print_info "Available Unsloth configs:"
@@ -243,11 +229,8 @@ fi
 print_info "Configuration file: $CONFIG_FILE"
 print_info "Training script: $TRAINING_SCRIPT"
 echo
-
-# Setup logging
 setup_logging
 
-# Run checks unless skipped
 if [ "$SKIP_CHECKS" = false ]; then
     check_gpu
     echo
@@ -259,18 +242,14 @@ if [ "$SKIP_CHECKS" = false ]; then
     echo
 fi
 
-# Disable W&B if requested
 if [ "$DISABLE_WANDB" = true ]; then
     export WANDB_MODE=disabled
     print_warning "W&B logging disabled"
 fi
 
-# Display training configuration
 print_header "Training Configuration (Unsloth)"
 print_info "Reading configuration from: $CONFIG_FILE"
 echo
-
-# Parse and display key configuration values
 python - <<EOF
 import yaml
 try:
@@ -309,8 +288,6 @@ except Exception as e:
 EOF
 
 echo
-
-# Confirm before starting
 read -p "$(echo -e ${GREEN}Do you want to start Unsloth training? [y/N]:${NC} )" -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -323,26 +300,19 @@ print_info "Training started at: $(date)"
 print_info "Logs are being saved to: $LOG_FILE"
 print_info "Using Unsloth for optimized training speed..."
 echo
-
-# Run training with logging
 python "$TRAINING_SCRIPT" --config "$CONFIG_FILE" 2>&1 | tee "$LOG_FILE"
 
-# Check training result
 if [ ${PIPESTATUS[0]} -eq 0 ]; then
     print_header "Unsloth Training Completed Successfully"
     print_info "Training finished at: $(date)"
     print_info "Logs saved to: $LOG_FILE"
-    
-    # Display output directory
     OUTPUT_DIR=$(python -c "import yaml; config = yaml.safe_load(open('$CONFIG_FILE')); print(config.get('paths', {}).get('final_model_dir', config['training']['output_dir']))" 2>/dev/null)
+    
     if [ -n "$OUTPUT_DIR" ] && [ -d "$OUTPUT_DIR" ]; then
         print_info "Model saved to: $OUTPUT_DIR"
-        
-        # Show model files
         echo
         print_info "Model files:"
         ls -lh "$OUTPUT_DIR" 2>/dev/null | head -10
-        
         echo
         print_info "Next steps:"
         echo "  1. Run inference: ./scripts/run_inference.sh -m $OUTPUT_DIR"

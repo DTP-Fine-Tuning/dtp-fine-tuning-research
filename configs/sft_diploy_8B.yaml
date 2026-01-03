@@ -1,9 +1,9 @@
-# Unsloth Training Configuration for Qwen3-1.7B
+# Unsloth Training Configuration for KomdigiUB-8B on Multi-Turn Indonesian Chatbot Dataset
 # Using GPU A100 80GB
 
 # Model Configuration
 model:
-  name: "Qwen/Qwen3-4B"
+  name: "aitfindonesia/KomdigiUB-8B-Base"
   trust_remote_code: true
   use_cache: false
 
@@ -19,8 +19,13 @@ tokenizer:
 quantization:
   load_in_4bit: true
   bnb_4bit_quant_type: "nf4"
-  bnb_4bit_compute_dtype: "float16"
+  bnb_4bit_compute_dtype: "bfloat16"
   bnb_4bit_use_double_quant: true
+
+# Precision Configuration
+precision:
+  fp16: true   
+  bf16: false  
 
 # LoRA Configuration
 lora:
@@ -40,16 +45,16 @@ lora:
 
 # Dataset Configuration
 dataset:
-  name: "dtp-fine-tuning/dtp-multiturn-interview-10k-combined"
+  name: "dtp-fine-tuning/dtp-multiturn-interview-valid-16k"
   split: "train"
   test_size: 0.1  
   seed: 42
-  max_length: 2048  
+  max_length: 4096  
 
 # Training Arguments
 training:
-  output_dir: "./SFT-Qwen3-4B-Unsloth"
-  run_name: "SFT-Qwen3-4B-Unsloth-MultiTurn"
+  output_dir: "./SFT-KomdigiUB-8B-Base-MultiTurn-16K-4096"
+  run_name: "SFT-KomdigiUB-8B-Base-MultiTurn-16K-4096"
 
   # Batch Configuration
   per_device_train_batch_size: 8 
@@ -57,7 +62,7 @@ training:
   gradient_accumulation_steps: 4
 
   # Training Parameters
-  num_train_epochs: 2  
+  num_train_epochs: 1  
   learning_rate: 0.00002  
   warmup_ratio: 0.05  
 
@@ -66,15 +71,15 @@ training:
   weight_decay: 0.01
 
   # Scheduler
-  lr_scheduler_type: "cosine"  
+  lr_scheduler_type: "linear"  
 
   # Logging & Evaluation
-  logging_steps: 10  
+  logging_steps: 25  
   eval_strategy: "steps"
   eval_steps: 50  
   save_strategy: "steps"
   save_steps: 50  
-  save_total_limit: 3  
+  save_total_limit: 10  
 
   # Model Selection & Early Stopping
   load_best_model_at_end: true
@@ -91,19 +96,20 @@ training:
 # Weights & Biases Configuration
 wandb:
   entity: "DTP2"
-  project: "unsloth_experiment" 
+  project: "chatbot_multiturn_experiment" 
   tags:
-    - "qwen3"
-    - "qwen3-1.7b"
+    - "16K"
+    - "4096"
+    - "KomdigiUB-8B"
     - "unsloth"
     - "multi-turn"
     - "indonesian"
     - "instruction-masking"
-  notes: "Fine-tuning Qwen3-4B with Unsloth optimization and instruction masking"
+  notes: "Fine-tuning KomdigiUB-8B with Unsloth optimization and instruction masking"
 
 # Paths
 paths:
-  final_model_dir: "./SFT-Qwen3-4B-Unsloth-final"
+  final_model_dir: "./SFT-KomdigiUB-8B-Base-MultiTurn-16K-4096-final"
   checkpoints_dir: "./checkpoints"
   logs_dir: "./logs"
 

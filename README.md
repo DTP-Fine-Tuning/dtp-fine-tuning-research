@@ -1,6 +1,6 @@
 # dtp-fine-tuning-research
 
-Repositori ini berfokus pada **riset dan eksperimen fine-tuning LLM** menggunakan pendekatan SFT (Supervised Fine-Tuning) dan DPO (Direct Preference Optimization).
+Repositori ini berfokus pada **riset dan eksperimen fine-tuning LLM** menggunakan pendekatan SFT (Supervised Fine-Tuning)
 
 ##  Tujuan
 
@@ -17,6 +17,7 @@ dtp-fine-tuning-research/
 ├── notebooks/              # Exploratory Jupyter notebooks
 ├── scripts/                # Script eksekusi training
 ├── src/                    # Source code (trainer, utils, dsb.)
+├── paper/                  # knowledge base fine tuning
 ├── docs/                   # Dokumentasi riset
 ├── requirements.txt        # Dependensi utama
 ├── .gitignore
@@ -29,8 +30,9 @@ dtp-fine-tuning-research/
 * [Datasets](https://huggingface.co/docs/datasets) – data handling
 * [PEFT](https://github.com/huggingface/peft) – parameter-efficient tuning (LoRA, QLoRA)
 * [Accelerate](https://huggingface.co/docs/accelerate) – distribusi training
-* [TRL](https://huggingface.co/docs/trl/index) - untuk dft sft
+* [TRL](https://huggingface.co/docs/trl/index) - untuk sft
 * [Weights & Biases](https://wandb.ai/) – tracking eksperimen
+* [Unsloth](https://unsloth.ai/docs) – untuk faster sft
 
 ##  Getting Started
 
@@ -62,12 +64,14 @@ dtp-fine-tuning-research/
 
 ##  Dokumentasi
 
-* [Fine-tuning Overview](docs/fine_tuning_overview.md)
-* [Experiment Guidelines](docs/experiment_guidelines.md)
+* [Custom Scenarios Guidelines](docs/custom_scenarios_guide.md)
+* [Evaluation Guidelines](docs/eval_guide.md)
+* [Loss Curve Guidelines](docs/loss_curve_guide.md)
+* [Scripts Installation Guidelines](docs/scripts_installation_guide.md)
 
 ## How to Contribute?
 
-Setiap anggota tim bisa menjalankan eksperimen dengan konfigurasi masing-masing. Gunakan direktori `experiments/` untuk menyimpan hasil & log.
+Anda dapat melakukan forking repository `dtp-fine-tuning-research` dan melakukan pull request.
 
 ---
 

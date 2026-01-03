@@ -1,0 +1,115 @@
+# Single-Turn Fine-Tuning Configuration for Qwen3
+# Optimized for instruction-following datasets (Alpaca-style, Q&A, etc.)
+
+# Model Configuration
+model:
+  name: "Qwen/Qwen3-4B"
+  trust_remote_code: true
+  use_cache: false
+
+chat_template:
+  name: "qwen3"
+
+# Tokenizer Configuration
+tokenizer:
+  padding_side: "left"
+  trust_remote_code: true
+
+# Quantization Configuration
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "float16"
+  bnb_4bit_use_double_quant: true
+
+# LoRA Configuration
+lora:
+  r: 16
+  lora_alpha: 32
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+# Dataset Configuration
+# Supports: Alpaca (instruction/input/output), Q&A (question/answer), 
+#           Prompt-Completion (prompt/completion), Simple (input/output)
+dataset:
+  name: "yahma/alpaca-cleaned"  # Example: Alpaca dataset
+  # name: "your-org/your-single-turn-dataset"
+  split: "train"
+  test_size: 0.1
+  seed: 42
+  max_length: 1024  # Shorter for single-turn (can reduce from 2048)
+
+# Training Arguments
+training:
+  output_dir: "./SFT-Qwen3-4B-SingleTurn"
+  run_name: "SFT-Qwen3-4B-SingleTurn-Alpaca"
+
+  # Batch Configuration (can use larger batch for shorter sequences)
+  per_device_train_batch_size: 16
+  per_device_eval_batch_size: 16
+  gradient_accumulation_steps: 2
+
+  # Training Parameters
+  num_train_epochs: 2
+  learning_rate: 0.00002
+  warmup_ratio: 0.05
+
+  # Optimizer
+  optim: "adamw_8bit"
+  weight_decay: 0.01
+
+  # Scheduler
+  lr_scheduler_type: "cosine"
+
+  # Logging & Evaluation
+  logging_steps: 10
+  eval_strategy: "steps"
+  eval_steps: 100
+  save_strategy: "steps"
+  save_steps: 100
+  save_total_limit: 3
+
+  # Model Selection & Early Stopping
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  early_stopping_patience: 3
+
+  # Misc
+  seed: 42
+  report_to: "wandb"
+  dataset_num_proc: 4
+  packing: false
+
+# Weights & Biases Configuration
+wandb:
+  entity: "DTP2"
+  project: "single_turn_experiment"
+  tags:
+    - "qwen3"
+    - "qwen3-4b"
+    - "unsloth"
+    - "single-turn"
+    - "alpaca"
+    - "instruction-following"
+  notes: "Single-turn fine-tuning Qwen3-4B on Alpaca dataset"
+
+# Paths
+paths:
+  final_model_dir: "./SFT-Qwen3-4B-SingleTurn-final"
+  checkpoints_dir: "./checkpoints"
+  logs_dir: "./logs"
+
+# Push to Hub (optional)
+push_to_hub: false
+hub_model_id: ""

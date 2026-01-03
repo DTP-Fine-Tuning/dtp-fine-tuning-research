@@ -51,7 +51,7 @@ lora:
 dataset:
   name: "dtp-fine-tuning/dtp-multiturn-interview-valid-15k"
   split: "train"
-  test_size: 0.1  
+  test_size: 0.2  
   seed: 42
   max_length: 2048  
 

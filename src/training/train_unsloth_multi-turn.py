@@ -1,12 +1,7 @@
-"""
-Unsloth Multi-Turn Training Script
-Clean implementation following Unsloth's official patterns.
-Designed for multi-turn chat datasets with instruction masking.
+#multiturn training script
+#Author: Tim 2 - DTP Finetuning
 
-Usage:
-    python src/training/train_unsloth_v2.py --config configs/test/sft_multi-turn_unsloth_guide.yaml
-"""
-
+#import necessary libraries
 import os
 import sys
 import json
@@ -14,12 +9,8 @@ import torch
 import yaml
 import argparse
 from datetime import datetime
-
-# Unsloth imports
 from unsloth import FastLanguageModel, is_bfloat16_supported
 from unsloth.chat_templates import get_chat_template, train_on_responses_only
-
-# HuggingFace imports
 from datasets import load_dataset
 from transformers import TrainingArguments, EarlyStoppingCallback, DataCollatorForSeq2Seq
 from trl import SFTTrainer
@@ -31,13 +22,12 @@ except ImportError:
     WANDB_AVAILABLE = False
     print("W&B not available, logging will be disabled")
 
-
+#yaml conf
 def load_config(config_path: str) -> dict:
-    """Load YAML configuration file."""
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
-
+#function setup wandb
 def setup_wandb(config: dict, model_name: str):
     """Initialize Weights & Biases if available and configured."""
     if not WANDB_AVAILABLE:
@@ -64,9 +54,8 @@ def setup_wandb(config: dict, model_name: str):
     print(f"[DONE] W&B initialized: {run_name}")
     return True
 
-
+#function load model and tokenizer
 def load_model_and_tokenizer(config: dict):
-    """Load model and tokenizer using Unsloth."""
     model_name = config['model']['name']
     max_seq_length = config['dataset']['max_length']
     load_in_4bit = config.get('quantization', {}).get('load_in_4bit', True)
@@ -78,16 +67,15 @@ def load_model_and_tokenizer(config: dict):
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_name,
         max_seq_length=max_seq_length,
-        dtype=None,  # Auto-detect
+        dtype=None,  
         load_in_4bit=load_in_4bit,
         trust_remote_code=config.get('model', {}).get('trust_remote_code', True),
     )
     
     return model, tokenizer
 
-
+#setup lora func
 def setup_lora(model, config: dict):
-    """Configure LoRA adapters."""
     lora_config = config.get('lora', {})
     
     print(f"Configuring LoRA:")
@@ -108,18 +96,15 @@ def setup_lora(model, config: dict):
     
     return model
 
-
+#setup tokenizer func
 def setup_tokenizer(tokenizer, config: dict):
-    """Configure tokenizer with chat template."""
-    # Set padding side
+    #paddingside qwen3
     padding_side = config.get('tokenizer', {}).get('padding_side', 'left')
     tokenizer.padding_side = padding_side
     
-    # Set pad token if not set
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     
-    # Apply chat template
     chat_template_name = config.get('chat_template', {}).get('name', 'qwen3')
     tokenizer = get_chat_template(tokenizer, chat_template=chat_template_name)
     
@@ -129,9 +114,8 @@ def setup_tokenizer(tokenizer, config: dict):
     
     return tokenizer
 
-
+#load and prepare dataset func
 def prepare_dataset(config: dict, tokenizer):
-    """Load and prepare dataset for training."""
     dataset_name = config['dataset']['name']
     split = config['dataset'].get('split', 'train')
     test_size = config['dataset'].get('test_size', 0.2)
@@ -139,22 +123,18 @@ def prepare_dataset(config: dict, tokenizer):
     
     print(f"Loading dataset: {dataset_name}")
     
-    # Load dataset
     dataset = load_dataset(dataset_name, split=split)
     print(f"  Total examples: {len(dataset)}")
     print(f"  Columns: {dataset.column_names}")
     
-    # Check first sample to understand structure
     sample = dataset[0]
     print(f"  Sample keys: {list(sample.keys())}")
     
-    # Convert messages to text format using chat template
+    #convert messages to text func
     def convert_to_text(example):
-        """Convert messages to formatted text using chat template."""
         if 'messages' in example:
             messages = example['messages']
         elif 'conversations' in example:
-            # Handle ShareGPT format
             messages = []
             for turn in example['conversations']:
                 role = turn.get('from', turn.get('role', 'user'))
@@ -165,19 +145,17 @@ def prepare_dataset(config: dict, tokenizer):
                     role = 'assistant'
                 messages.append({"role": role, "content": content})
         else:
-            # Assume it's already in text format
             return {"text": str(example.get('text', ''))}
         
-        # Apply chat template
+        #apply chat template
         text = tokenizer.apply_chat_template(
             messages,
             tokenize=False,
-            add_generation_prompt=True,
             enable_thinking=False
         )
         return {"text": text}
     
-    # Check if conversion is needed
+    #check and convert
     if 'messages' in sample or 'conversations' in sample:
         print("  Converting messages to text format...")
         dataset = dataset.map(
@@ -188,11 +166,11 @@ def prepare_dataset(config: dict, tokenizer):
     elif 'text' not in sample:
         raise ValueError(f"Dataset must have 'messages', 'conversations', or 'text' column")
     
-    # Verify conversion
+    #verify
     print(f"  Final columns: {dataset.column_names}")
     print(f"  Sample text (first 200 chars): {dataset[0]['text'][:200]}...")
     
-    # Split into train/eval
+    #split
     if test_size > 0:
         splits = dataset.train_test_split(test_size=test_size, seed=seed)
         train_dataset = splits['train']
@@ -206,79 +184,162 @@ def prepare_dataset(config: dict, tokenizer):
     
     return train_dataset, eval_dataset
 
+#auto batch size detection func
+def find_optimal_batch_size(model, tokenizer, train_dataset, config: dict, starting_batch_size: int = 32):
+    print(f"\n{'='*60}")
+    print("AUTO BATCH SIZE DETECTION")
+    print(f"{'='*60}")
+    
+    if not torch.cuda.is_available():
+        print("No CUDA device found, using batch_size=1")
+        return 1
+    
+    gpu_memory = torch.cuda.get_device_properties(0).total_memory / (1024**3)  # GB
+    print(f"GPU Memory: {gpu_memory:.2f} GB")
+    
+    #conditional starting batch size
+    if gpu_memory < 8:
+        test_batch_size = 1
+    elif gpu_memory < 16:
+        test_batch_size = 2
+    elif gpu_memory < 24:
+        test_batch_size = 4
+    else:
+        test_batch_size = 8
+    
+    print(f"Starting test from batch_size={test_batch_size}")
+    
+    max_batch_size = test_batch_size
+    sample_data = train_dataset.select(range(min(8, len(train_dataset))))
+    
+    def test_batch(batch_size):
+        try:
+            torch.cuda.empty_cache()
+            
+            sample_texts = [sample_data[i]['text'] for i in range(min(batch_size, len(sample_data)))]
+            inputs = tokenizer(
+                sample_texts,
+                padding=True,
+                truncation=True,
+                max_length=config['dataset']['max_length'],
+                return_tensors="pt"
+            ).to(model.device)
+            
+            with torch.no_grad():
+                _ = model(**inputs)
+            
+            torch.cuda.empty_cache()
+            return True
+        except RuntimeError as e:
+            if "out of memory" in str(e).lower():
+                torch.cuda.empty_cache()
+                return False
+            raise e
+    
+    #binarysearch
+    while test_batch_size <= starting_batch_size:
+        print(f"  Testing batch_size={test_batch_size}...", end=" ")
+        if test_batch(test_batch_size):
+            max_batch_size = test_batch_size
+            print(f"[DONE] Success")
+            test_batch_size *= 2
+        else:
+            print(f"[FAIL] OOM")
+            break
+    
+    #foound optimal using intermediate values
+    if max_batch_size < test_batch_size // 2:
+        for bs in range(max_batch_size + 1, test_batch_size // 2):
+            print(f"  Testing batch_size={bs}...", end=" ")
+            if test_batch(bs):
+                max_batch_size = bs
+                print(f"[DONE] Success")
+            else:
+                print(f"[FAIL] OOM")
+                break
+    
+    torch.cuda.empty_cache()
+    
+    print(f"\n[DONE] Optimal batch_size: {max_batch_size}")
+    print(f"{'='*60}\n")
+    
+    return max_batch_size
 
+#create trainer func
 def create_trainer(model, tokenizer, train_dataset, eval_dataset, config: dict):
-    """Create SFTTrainer with proper configuration."""
     train_config = config['training']
     advanced_config = config.get('advanced', {})
     
-    # Determine precision based on model dtype
+    #autodetect batch size if configure in yaml
+    per_device_batch_size = train_config['per_device_train_batch_size']
+    
+    if per_device_batch_size == 'auto':
+        print("Auto batch size detection enabled...")
+        per_device_batch_size = find_optimal_batch_size(
+            model, tokenizer, train_dataset, config,
+            starting_batch_size=32
+        )
+
+        #update conf
+        train_config['per_device_train_batch_size'] = per_device_batch_size
+    elif isinstance(per_device_batch_size, str) and per_device_batch_size.startswith('auto:'):
+        
+        #ex: 'auto:16' to start testing from batch size 16
+        starting_size = int(per_device_batch_size.split(':')[1])
+        print(f"Auto batch size detection enabled (starting from {starting_size})...")
+        per_device_batch_size = find_optimal_batch_size(
+            model, tokenizer, train_dataset, config,
+            starting_batch_size=starting_size
+        )
+        train_config['per_device_train_batch_size'] = per_device_batch_size
+    
     model_dtype = next(model.parameters()).dtype
     use_bf16 = model_dtype == torch.bfloat16
     use_fp16 = model_dtype == torch.float16
     
     if not use_bf16 and not use_fp16:
-        # Model is FP32, use GPU capability
         use_bf16 = is_bfloat16_supported()
         use_fp16 = not use_bf16
     
     print(f"Training precision: {'BF16' if use_bf16 else 'FP16'}")
     
-    # Get advanced settings
+    #advanced settings
     max_grad_norm = advanced_config.get('max_grad_norm', 1.0)
     use_neftune = advanced_config.get('use_neftune', False)
     neftune_alpha = advanced_config.get('neftune_noise_alpha', 5.0) if use_neftune else None
     
-    # Create training arguments
+    #create training args
     training_args = TrainingArguments(
         output_dir=train_config['output_dir'],
-        run_name=train_config.get('run_name', 'sft-training'),
-        
-        # Batch settings
-        per_device_train_batch_size=train_config['per_device_train_batch_size'],
-        per_device_eval_batch_size=train_config.get('per_device_eval_batch_size', 4),
-        gradient_accumulation_steps=train_config['gradient_accumulation_steps'],
-        
-        # Training settings
+        run_name=train_config.get('run_name', 'sft-training'),        
+        per_device_train_batch_size=per_device_batch_size,
+        per_device_eval_batch_size=train_config.get('per_device_eval_batch_size', per_device_batch_size),
+        gradient_accumulation_steps=train_config['gradient_accumulation_steps'],        
         num_train_epochs=train_config['num_train_epochs'],
         learning_rate=train_config['learning_rate'],
         warmup_ratio=train_config.get('warmup_ratio', 0.05),
         weight_decay=train_config.get('weight_decay', 0.01),
         lr_scheduler_type=train_config.get('lr_scheduler_type', 'linear'),
         optim=train_config.get('optim', 'adamw_8bit'),
-        
-        # Precision
         fp16=use_fp16,
         bf16=use_bf16,
-        
-        # Gradient settings
         max_grad_norm=max_grad_norm,
-        
-        # Logging
         logging_steps=train_config.get('logging_steps', 25),
         report_to=train_config.get('report_to', 'none'),
-        
-        # Evaluation
         eval_strategy=train_config.get('eval_strategy', 'steps') if eval_dataset else 'no',
         eval_steps=train_config.get('eval_steps', 50) if eval_dataset else None,
-        
-        # Saving
         save_strategy=train_config.get('save_strategy', 'steps'),
         save_steps=train_config.get('save_steps', 100),
         save_total_limit=train_config.get('save_total_limit', 3),
-        
-        # Best model
         load_best_model_at_end=train_config.get('load_best_model_at_end', True) if eval_dataset else False,
         metric_for_best_model=train_config.get('metric_for_best_model', 'eval_loss') if eval_dataset else None,
         greater_is_better=train_config.get('greater_is_better', False),
-        
-        # NEFTune
         neftune_noise_alpha=neftune_alpha,
         seed=config['dataset'].get('seed', 42),
         remove_unused_columns=True,
     )
     
-    # Setup callbacks
+    #early stopping
     callbacks = []
     if eval_dataset and train_config.get('early_stopping_patience'):
         callbacks.append(
@@ -288,8 +349,7 @@ def create_trainer(model, tokenizer, train_dataset, eval_dataset, config: dict):
         )
         print(f"[DONE] Early stopping enabled (patience: {train_config['early_stopping_patience']})")
     
-    # Use DataCollatorForSeq2Seq as per Unsloth's official notebook
-    # This prevents the "excessive nesting" tensor creation error
+    # prevents the "excessive nesting" tensor creation error based on unsloth docs
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer)
     
     trainer = SFTTrainer(
@@ -307,12 +367,10 @@ def create_trainer(model, tokenizer, train_dataset, eval_dataset, config: dict):
     
     return trainer
 
-
+#apply instruction masking func
 def apply_instruction_masking(trainer, config: dict):
-    """Apply train_on_responses_only for instruction masking."""
     chat_template = config.get('chat_template', {}).get('name', 'qwen3')
     
-    # Define markers based on chat template
     if chat_template in ['qwen3', 'chatml', 'qwen-2.5']:
         instruction_part = "<|im_start|>user\n"
         response_part = "<|im_start|>assistant\n"
@@ -335,18 +393,14 @@ def apply_instruction_masking(trainer, config: dict):
     
     return trainer
 
-
+#save model func
 def save_model(model, tokenizer, config: dict, training_loss: float, best_metric=None):
-    """Save model, tokenizer, and training info."""
     final_dir = config['paths']['final_model_dir']
     
     print(f"Saving model to: {final_dir}")
     
-    # Save model and tokenizer
     model.save_pretrained(final_dir)
     tokenizer.save_pretrained(final_dir)
-    
-    # Save training info
     training_info = {
         "model_name": config['model']['name'],
         "training_completed": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -400,7 +454,7 @@ def main(config_path: str):
     print("Unsloth Multi-Turn Training v2")
     print("=" * 60)
     
-    # Load configuration
+    # Load configurationzz
     config = load_config(config_path)
     print(f"[DONE] Config loaded: {config_path}")
     
@@ -460,10 +514,10 @@ def main(config_path: str):
             print(f"  Best eval loss: {best_metric:.4f}")
         
     except torch.cuda.OutOfMemoryError:
-        print("\n✗ Out of Memory! Try reducing batch_size or max_length")
+        print("\n[FAIL] Out of Memory! Try reducing batch_size or max_length")
         sys.exit(1)
     except Exception as e:
-        print(f"\n✗ Training failed: {e}")
+        print(f"\n[FAIL] Training failed: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
