@@ -541,7 +541,7 @@ def main(config_path: str):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Unsloth Multi-Turn Training v2")
+    parser = argparse.ArgumentParser(description="Unsloth Multi-Turn Training DTP-2")
     parser.add_argument(
         "--config", "-c",
         type=str,

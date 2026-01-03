@@ -12,7 +12,13 @@ NC='\033[0m'
 
 MODEL_PATH=""  
 BASE_MODEL=""
-INFERENCE_SCRIPT="src/training/gradio_inference.py"
+
+#for multi-turn inference
+INFERENCE_SCRIPT="src/inference/gradio_inference_multi-turn.py"
+
+#uncomment this if you want to use single-turn inference
+# INFERENCE_SCRIPT="src/inference/gradio_inference_single-turn.py"
+
 PORT=7860
 MAX_NEW_TOKENS=512
 SHARE=false
@@ -270,7 +276,7 @@ fi
 
 if [ ! -f "$INFERENCE_SCRIPT" ]; then
     print_error "Inference script not found: $INFERENCE_SCRIPT"
-    print_info "Expected location: src/training/gradio_inference.py"
+    print_info "Expected location: src/inference/gradio_inference_multi-turn.py"
     exit 1
 fi
 

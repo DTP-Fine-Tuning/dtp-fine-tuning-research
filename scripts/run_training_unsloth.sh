@@ -222,7 +222,7 @@ fi
 
 if [ ! -f "$TRAINING_SCRIPT" ]; then
     print_error "Training script not found: $TRAINING_SCRIPT"
-    print_info "Expected location: src/training/train_unsloth.py"
+    print_info "Expected location: src/training/train_unsloth_multi-turn.py"
     exit 1
 fi
 

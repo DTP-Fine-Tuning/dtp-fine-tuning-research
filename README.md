@@ -73,6 +73,11 @@ dtp-fine-tuning-research/
 
 Anda dapat melakukan forking repository `dtp-fine-tuning-research` dan melakukan pull request.
 
+## Get in Touch with Maintainers
+### Wildan: [![GitHub](https://img.shields.io/badge/GitHub-%23121011.svg?logo=github&logoColor=white)](https://github.com/wildanaziz) | [![Firefox](https://img.shields.io/badge/Firefox-FF7139?logo=firefoxbrowser&logoColor=white)](https://wildanaziz.vercel.app/) | [![Hugging Face](https://img.shields.io/badge/Hugging%20Face-FFD21E?logo=huggingface&logoColor=000)](https://huggingface.co/wildanaziz)
+### Syafiq: [![GitHub](https://img.shields.io/badge/GitHub-%23121011.svg?logo=github&logoColor=white)](https://github.com/syafiqirz)
+### Naufal: [![GitHub](https://img.shields.io/badge/GitHub-%23121011.svg?logo=github&logoColor=white)](https://github.com/NaufalArsa)
+
 ---
 
  *Repo ini saling melengkapi dengan [`dtp-data-pipeline`](https://github.com/DTP-Fine-Tuning/dtp-data-pipeline) sebagai sumber dataset preprocessing.*
